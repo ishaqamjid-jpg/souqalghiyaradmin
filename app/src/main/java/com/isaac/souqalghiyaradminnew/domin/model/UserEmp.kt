@@ -8,6 +8,6 @@ data class UserEmp(
     val display_name: String = "",
     val fcm_token: String = "",
     val status: String = "active",       // "active" أو "not_active"
-    val user_permissions: String = "employee", // "admin" أو "employee"
+    val user_permissions: String = "admin", // "admin" أو "employee"
     val created_at: Timestamp? = null
 )
