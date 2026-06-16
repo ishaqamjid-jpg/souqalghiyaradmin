@@ -1,12 +1,12 @@
 package com.isaac.souqalghiyaradminnew.domain.repository
 
 import com.isaac.souqalghiyaradminnew.domain.model.UserEmp
-import kotlinx.coroutines.flow.Flow // تأكد من إضافة هذا الاستيراد
+import kotlinx.coroutines.flow.Flow 
 
 interface AdminRepository {
-    // دالة تسجيل الدخول
-    suspend fun loginAdmin(phoneNumber: String): UserEmp?
+    // دالة تسجيل الدخول (تم إضافة كلمة المرور)
+    suspend fun loginAdmin(phoneNumber: String, password: String): UserEmp?
 
-    // الدالة الجديدة لمراقبة حساب الموظف لحظياً (هذا هو السطر الناقص)
+    // دالة مراقبة حساب الموظف لحظياً
     fun observeAdminProfile(userId: String): Flow<UserEmp?>
 }
