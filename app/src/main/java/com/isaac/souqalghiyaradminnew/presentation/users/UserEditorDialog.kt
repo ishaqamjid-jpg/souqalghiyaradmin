@@ -17,10 +17,12 @@ import androidx.compose.ui.text.font.FontWeight
 fun UserEditorDialog(
     user: UserEmp?,
     onDismiss: () -> Unit,
-    onSave: (String, String, String, String, String) -> Unit
+    // تم إضافة متغير كلمة المرور في الدالة
+    onSave: (String, String, String, String, String, String) -> Unit
 ) {
     var displayName by remember { mutableStateOf(user?.display_name ?: "") }
     var phoneNumber by remember { mutableStateOf(user?.phone_number ?: "") }
+    var password by remember { mutableStateOf(user?.password ?: "") } // إضافة كلمة المرور
     var permissions by remember { mutableStateOf(user?.user_permissions ?: "employee") }
     var status by remember { mutableStateOf(user?.status ?: "active") }
 
@@ -41,7 +43,15 @@ fun UserEditorDialog(
                     onValueChange = { phoneNumber = it },
                     label = { Text("رقم الهاتف") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("كلمة المرور") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                     modifier = Modifier.fillMaxWidth()
                 )
                 
@@ -66,8 +76,9 @@ fun UserEditorDialog(
         },
         confirmButton = {
             Button(onClick = { 
-                if(displayName.isNotBlank() && phoneNumber.isNotBlank()) {
-                    onSave(user?.user_id ?: "", displayName, phoneNumber, permissions, status) 
+                // التحقق من تعبئة كلمة المرور بالإضافة لبقية الحقول
+                if(displayName.isNotBlank() && phoneNumber.isNotBlank() && password.isNotBlank()) {
+                    onSave(user?.user_id ?: "", displayName, phoneNumber, password, permissions, status) 
                 }
             }) {
                 Text("حفظ")
