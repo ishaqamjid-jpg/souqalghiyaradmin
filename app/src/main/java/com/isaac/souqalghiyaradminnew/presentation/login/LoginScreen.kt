@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,11 +26,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.isaac.souqalghiyaradminnew.R // تأكد من استيراد الـ R الصحيح لمشروعك
+import com.isaac.souqalghiyaradminnew.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +41,7 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val phoneNumber by viewModel.phoneNumber.collectAsState()
+    val password by viewModel.password.collectAsState()
     val rememberMe by viewModel.rememberMe.collectAsState()
 
     var showHelpDialog by remember { mutableStateOf(false) }
@@ -47,7 +50,6 @@ fun LoginScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // تدرج لوني فخم من الأزرق الداكن جداً إلى الأزرق الملكي (يناسب لوحة الإدارة)
                 .background(Brush.verticalGradient(listOf(Color(0xFF070D2B), Color(0xFF15235B))))
         ) {
             IconButton(
@@ -62,20 +64,19 @@ fun LoginScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // مساحة الشعار (Logo)
                 Surface(
                     modifier = Modifier
                         .size(130.dp)
                         .shadow(15.dp, CircleShape),
                     shape = CircleShape,
-                    color = Color.White // خلفية بيضاء لتبرز الشعار
+                    color = Color.White
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.logo_admin), // تم ربط الشعار هنا
+                        painter = painterResource(id = R.drawable.logo_admin), 
                         contentDescription = "شعار تطبيق الإدارة",
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(12.dp) // مسافة داخلية لترتيب الشعار
+                            .padding(12.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Fit
                     )
@@ -108,6 +109,32 @@ fun LoginScreen(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Phone,
+                        imeAction = ImeAction.Next
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color.White.copy(0.7f),
+                        focusedBorderColor = Color(0xFF4CAF50),
+                        unfocusedBorderColor = Color.White.copy(0.5f),
+                        cursorColor = Color.White
+                    )
+                )
+
+                Spacer(Modifier.height(15.dp))
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = viewModel::onPasswordChange,
+                    label = { Text("كلمة المرور") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White.copy(0.7f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(
@@ -123,7 +150,7 @@ fun LoginScreen(
                         unfocusedTextColor = Color.White,
                         focusedLabelColor = Color.White,
                         unfocusedLabelColor = Color.White.copy(0.7f),
-                        focusedBorderColor = Color(0xFF4CAF50), // لون أخضر عند التركيز
+                        focusedBorderColor = Color(0xFF4CAF50),
                         unfocusedBorderColor = Color.White.copy(0.5f),
                         cursorColor = Color.White
                     )
@@ -139,7 +166,7 @@ fun LoginScreen(
                         checked = rememberMe,
                         onCheckedChange = { viewModel.onRememberMeChange(it) },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF4CAF50), // علامة صح خضراء
+                            checkedColor = Color(0xFF4CAF50),
                             uncheckedColor = Color.White.copy(alpha = 0.6f),
                             checkmarkColor = Color.White
                         )
@@ -155,7 +182,7 @@ fun LoginScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White, 
-                        contentColor = Color(0xFF0D1B6D) // أزرق داكن للنص
+                        contentColor = Color(0xFF0D1B6D)
                     ),
                     enabled = !uiState.isLoading
                 ) {
@@ -170,7 +197,7 @@ fun LoginScreen(
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = it, 
-                        color = Color(0xFFFF5252), // أحمر للتنبيهات
+                        color = Color(0xFFFF5252), 
                         modifier = Modifier.padding(top = 10.dp), 
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -183,7 +210,7 @@ fun LoginScreen(
             AlertDialog(
                 onDismissRequest = { showHelpDialog = false },
                 title = { Text("تسجيل الدخول", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D)) },
-                text = { Text("في مرحلة التطوير الحالية، يمكنك تسجيل الدخول باستخدام رقم الهاتف المسجل في قاعدة البيانات مباشرة بدون رمز تحقق (OTP).") },
+                text = { Text("قم بتسجيل الدخول باستخدام رقم الهاتف وكلمة المرور المسجلة مسبقاً للموظفين في قاعدة البيانات.") },
                 confirmButton = {
                     TextButton(onClick = { showHelpDialog = false }) { 
                         Text("حسناً", color = Color(0xFF0D1B6D), fontWeight = FontWeight.Bold) 
