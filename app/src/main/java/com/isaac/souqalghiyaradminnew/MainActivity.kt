@@ -20,7 +20,7 @@ import com.isaac.souqalghiyaradminnew.presentation.orders.OrdersManagementScreen
 import com.isaac.souqalghiyaradminnew.presentation.ads.AdsManagementScreen
 import com.isaac.souqalghiyaradminnew.presentation.constants.ConstantsScreen
 import com.isaac.souqalghiyaradminnew.presentation.reports.ReportsScreen
-import com.isaac.souqalghiyaradminnew.presentation.clients.ClientUsersScreen // تم الاستيراد بنجاح
+import com.isaac.souqalghiyaradminnew.presentation.clients.ClientUsersScreen
 import com.isaac.souqalghiyaradminnew.ui.theme.SuqalghiyarAdminTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -70,9 +70,9 @@ class MainActivity : ComponentActivity() {
                         composable("dashboard") {
                             MainDashboardScreen(
                                 adminName = currentSessionName,
-                                currentUserId = currentSessionId, // تمرير الـ ID لبدء المراقبة اللحظية للحظر
+                                currentUserId = currentSessionId,
                                 onNavigateToEmpUsers = { navController.navigate("users_emp") },
-                                onNavigateToClientUsers = { navController.navigate("client_users") }, // تم الربط بنجاح
+                                onNavigateToClientUsers = { navController.navigate("client_users") },
                                 onNavigateToAds = { navController.navigate("ads") },
                                 onNavigateToOrders = { navController.navigate("orders") },
                                 onNavigateToConstants = { navController.navigate("constants") },
