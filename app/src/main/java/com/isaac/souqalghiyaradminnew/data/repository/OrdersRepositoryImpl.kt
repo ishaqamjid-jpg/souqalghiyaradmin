@@ -12,12 +12,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.Date // تم إضافة هذا الاستيراد للتعامل مع التاريخ
 import javax.inject.Inject
 
 class OrdersRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore
 ) : OrdersRepository {
 
+    // --- 1. الطلبات المعلقة ---
     override fun getPendingOrders(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders")
             .whereEqualTo("order_status", "pending")
@@ -32,8 +34,7 @@ class OrdersRepositoryImpl @Inject constructor(
                         trySend(emptyList()).isSuccess
                         return@addSnapshotListener
                     }
-                    
-                    // استخدام Coroutine لجلب القطع الفرعية بداخل الـ Listener بشكل آمن
+
                     CoroutineScope(Dispatchers.IO).launch {
                         snapshot.documents.forEach { doc ->
                             val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
@@ -49,16 +50,56 @@ class OrdersRepositoryImpl @Inject constructor(
                                 }
                             }
                         }
-                        trySend(orderList.sortedByDescending { it.order.created_at }).isSuccess
+                        // الفرز من الأحدث للأقدم
+                        trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
                     }
                 }
             }
         awaitClose { subscription.remove() }
     }
 
+    // --- 2. الطلبات قيد الموافقة (تم تسعيرها) ---
+    override fun getWaitingOrders(): Flow<List<OrderWithItems>> = callbackFlow {
+        val subscription = db.collection("orders")
+            .whereEqualTo("order_status", "waiting for approvel") // نفس الاسم المستخدم في الـ ViewModel
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val orderList = mutableListOf<OrderWithItems>()
+                    if (snapshot.isEmpty) {
+                        trySend(emptyList()).isSuccess
+                        return@addSnapshotListener
+                    }
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        snapshot.documents.forEach { doc ->
+                            val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
+                            if (order != null) {
+                                try {
+                                    val itemsSnapshot = db.collection("orders").document(order.order_id).collection("items").get().await()
+                                    val items = itemsSnapshot.documents.mapNotNull { itemDoc ->
+                                        itemDoc.toObject(OrderItem::class.java)?.copy(item_id = itemDoc.id)
+                                    }
+                                    orderList.add(OrderWithItems(order, items))
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                        }
+                        trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
+                    }
+                }
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    // --- 3. الطلبات المنتهية عموماً (موجودة مسبقاً) ---
     override fun getCompletedOrders(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders")
-            .whereIn("order_status", listOf("completed", "canceled")) // جلب المنتهية والملغاة للتقارير
+            .whereIn("order_status", listOf("completed", "canceled"))
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
@@ -85,13 +126,69 @@ class OrdersRepositoryImpl @Inject constructor(
                                 }
                             }
                         }
-                        trySend(orderList.sortedByDescending { it.order.created_at }).isSuccess
+                        trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
                     }
                 }
             }
         awaitClose { subscription.remove() }
     }
 
+    // --- 4. جلب الطلبات المرفوضة/المكتملة حسب التاريخ (الدالة الجديدة) ---
+    // --- 4. جلب الطلبات المرفوضة/المكتملة حسب التاريخ ---
+    override suspend fun getOrdersByDateRange(
+        status: String,
+        startTimestamp: Long,
+        endTimestamp: Long
+    ): List<OrderWithItems> {
+        return try {
+            // 1. نجلب الطلبات حسب الحالة فقط لتجنب خطأ Index في الفايربيز
+            val snapshot = db.collection("orders")
+                .whereEqualTo("order_status", status)
+                .get()
+                .await()
+
+            val orderList = mutableListOf<OrderWithItems>()
+
+            for (doc in snapshot.documents) {
+                val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
+                if (order != null) {
+
+                    // 2. استخراج الوقت بأمان تام أياً كان نوع البيانات المحفوظة في فايربيز
+                    val orderTime = when (val createdAtRaw = doc.get("created_at")) {
+                        is com.google.firebase.Timestamp -> createdAtRaw.toDate().time
+                        is java.util.Date -> createdAtRaw.time
+                        is Number -> createdAtRaw.toLong()
+                        else -> 0L
+                    }
+
+                    // 3. فلترة التاريخ محلياً (يسمح بظهور الطلبات ضمن نفس اليوم بغض النظر عن الوقت)
+                    if (orderTime in startTimestamp..endTimestamp) {
+                        try {
+                            val itemsSnapshot = db.collection("orders")
+                                .document(order.order_id)
+                                .collection("items")
+                                .get()
+                                .await()
+
+                            val items = itemsSnapshot.documents.mapNotNull { itemDoc ->
+                                itemDoc.toObject(OrderItem::class.java)?.copy(item_id = itemDoc.id)
+                            }
+                            orderList.add(OrderWithItems(order, items))
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+            }
+
+            // إعادة القائمة مفروزة من الأحدث للأقدم
+            orderList.sortedByDescending { it.order.created_at.toString() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    // --- 5. تحديث حالة الطلب الرئيسية ---
     override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
         return try {
             db.collection("orders").document(orderId).update(
@@ -106,6 +203,7 @@ class OrdersRepositoryImpl @Inject constructor(
         }
     }
 
+    // --- 6. تحديث بيانات القطعة الواحدة من قبل الإدارة ---
     override suspend fun updateOrderItemAdminFields(
         orderId: String,
         itemId: String,

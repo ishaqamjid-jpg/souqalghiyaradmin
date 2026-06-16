@@ -28,7 +28,7 @@ class UsersViewModel @Inject constructor() : ViewModel() {
 
     // دالة لجلب البيانات بمراقبة لحظية (Real-time)
     private fun fetchUsers() {
-        db.collection("users_emp").addSnapshotListener { snapshot, error ->
+        db.collection("UserEmp").addSnapshotListener { snapshot, error ->
             if (error != null) {
                 // يمكنك هنا معالجة الأخطاء إذا لزم الأمر
                 return@addSnapshotListener
@@ -66,10 +66,10 @@ class UsersViewModel @Inject constructor() : ViewModel() {
                 // نضيف التوكن فارغاً افتراضياً مع تاريخ ووقت الإنشاء
                 userMap["fcm_token"] = ""
                 userMap["created_at"] = Timestamp.now()
-                db.collection("users_emp").add(userMap)
+                db.collection("UserEmp").add(userMap)
             } else {
                 // إذا كان هناك ID، فهذه عملية تحديث لموظف موجود مسبقاً
-                db.collection("users_emp").document(id).update(userMap)
+                db.collection("UserEmp").document(id).update(userMap)
             }
         }
     }
@@ -78,7 +78,7 @@ class UsersViewModel @Inject constructor() : ViewModel() {
     fun deleteUser(id: String) {
         viewModelScope.launch {
             if (id.isNotEmpty()) {
-                db.collection("users_emp").document(id).delete()
+                db.collection("UserEmp").document(id).delete()
             }
         }
     }

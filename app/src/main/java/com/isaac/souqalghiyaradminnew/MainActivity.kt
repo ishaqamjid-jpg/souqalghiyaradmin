@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
                             MainDashboardScreen(
                                 adminName = currentSessionName,
                                 currentUserId = currentSessionId,
-                                onNavigateToEmpUsers = { navController.navigate("users_emp") },
+                                onNavigateToEmpUsers = { navController.navigate("UserEmp") },
                                 onNavigateToClientUsers = { navController.navigate("client_users") },
                                 onNavigateToAds = { navController.navigate("ads") },
                                 onNavigateToOrders = { navController.navigate("orders") },
@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // --- 3. شاشة إدارة الموظفين ---
-                        composable("users_emp") {
+                        composable("UserEmp") {
                             UsersSettingsScreen(onBackClick = { navController.popBackStack() })
                         }
 
