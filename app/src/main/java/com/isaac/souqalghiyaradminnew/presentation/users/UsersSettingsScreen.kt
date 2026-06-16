@@ -58,6 +58,7 @@ fun UsersSettingsScreen(
                         supportingContent = { 
                             Column {
                                 Text("رقم الهاتف: ${user.phone_number}")
+                                Text("كلمة المرور: ${user.password}") // يفضل إظهارها للإدارة أو إخفائها حسب الرغبة
                                 Text(
                                     text = if (user.status == "active") "الحالة: نشط" else "الحالة: موقوف",
                                     color = if (user.status == "active") Color(0xFF4CAF50) else Color.Red
@@ -84,8 +85,9 @@ fun UsersSettingsScreen(
                 UserEditorDialog(
                     user = userToEdit,
                     onDismiss = { showDialog = false },
-                    onSave = { id, displayName, phoneNumber, permissions, status ->
-                        viewModel.saveUser(id, displayName, phoneNumber, permissions, status)
+                    // تم إضافة استلام password هنا وتمريرها للدالة
+                    onSave = { id, displayName, phoneNumber, password, permissions, status ->
+                        viewModel.saveUser(id, displayName, phoneNumber, password, permissions, status)
                         showDialog = false
                     }
                 )
