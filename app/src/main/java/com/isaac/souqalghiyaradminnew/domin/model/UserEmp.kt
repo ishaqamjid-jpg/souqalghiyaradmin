@@ -7,6 +7,7 @@ data class UserEmp(
     val phone_number: String = "",
     val display_name: String = "",
     val fcm_token: String = "",
+val password: String = "",
     val status: String = "active",       // "active" أو "not_active"
     val user_permissions: String = "admin", // "admin" أو "employee"
     val created_at: Timestamp? = null
