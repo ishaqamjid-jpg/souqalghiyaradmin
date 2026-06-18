@@ -31,7 +31,6 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
     val hasSearched by viewModel.hasSearched.collectAsState()
     val context = LocalContext.current
 
-    // States للبحث
     val merchantName by viewModel.merchantName.collectAsState()
     val partName by viewModel.partName.collectAsState()
     val orderNumber by viewModel.orderNumber.collectAsState()
@@ -40,6 +39,20 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
     val fromDate by viewModel.fromDate.collectAsState()
     val toDate by viewModel.toDate.collectAsState()
     val isDateEnabled by viewModel.isDateFilterEnabled.collectAsState()
+
+    var expandedStatus by remember { mutableStateOf(false) }
+
+    // قائمة الحالات المنسدلة
+    val statusOptions = listOf(
+        "" to "الكل (فارغ)",
+        "completed" to "مكتملة (completed)",
+        "canceled" to "مرفوض (canceled)",
+        "pending" to "معلقة (pending)",
+        "waiting for approvel" to "انتظار الموافقة"
+    )
+
+    // الحصول على النص المعروض بناءً على القيمة المختارة
+    val selectedStatusText = statusOptions.find { it.first == orderStatus }?.second ?: "الكل (فارغ)"
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
@@ -53,7 +66,6 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
         ) { padding ->
             Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
                 
-                // 1. الإحصائيات العلوية
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF2196F3), Modifier.weight(1f))
                     StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFFFF9800), Modifier.weight(1f))
@@ -65,12 +77,44 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 2. خانات البحث
                 Text("فلاتر البحث:", fontWeight = FontWeight.Bold)
+                
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
-                    OutlinedTextField(value = orderStatus, onValueChange = { viewModel.orderStatus.value = it }, label = { Text("حالة الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
+                    
+                    // القائمة المنسدلة لحالة الطلب
+                    ExposedDropdownMenuBox(
+                        expanded = expandedStatus,
+                        onExpandedChange = { expandedStatus = !expandedStatus },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = selectedStatusText,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("حالة الطلب") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatus) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            singleLine = true
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedStatus,
+                            onDismissRequest = { expandedStatus = false },
+                            modifier = Modifier.background(Color.White)
+                        ) {
+                            statusOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option.second, color = Color.Black) },
+                                    onClick = {
+                                        viewModel.orderStatus.value = option.first
+                                        expandedStatus = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
+                
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(value = merchantName, onValueChange = { viewModel.merchantName.value = it }, label = { Text("اسم التاجر") }, modifier = Modifier.weight(1f), singleLine = true)
                     OutlinedTextField(value = partName, onValueChange = { viewModel.partName.value = it }, label = { Text("اسم القطعة") }, modifier = Modifier.weight(1f), singleLine = true)
@@ -84,7 +128,6 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
                     OutlinedTextField(value = toDate, onValueChange = { viewModel.toDate.value = it }, label = { Text("إلى (yyyy-MM-dd)") }, modifier = Modifier.weight(1f), enabled = isDateEnabled)
                 }
 
-                // أزرار الإجراءات
                 Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Button(
                         onClick = { viewModel.searchOrders() },
@@ -98,7 +141,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
                     Button(
                         onClick = { ReportsPdfManager.generateFilteredReportPdf(context, filteredOrders) },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
-                        enabled = hasSearched && filteredOrders.isNotEmpty() // تفعيل زر PDF فقط إذا كانت هناك نتائج
+                        enabled = hasSearched && filteredOrders.isNotEmpty()
                     ) {
                         Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
@@ -108,23 +151,18 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 3. جدول عرض البيانات أو الرسائل التوضيحية
                 if (!hasSearched) {
-                    // رسالة قبل البحث
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("قم بضبط الفلاتر (أو اتركها فارغة لعرض الكل) واضغط على زر البحث", color = Color.Gray, fontSize = 14.sp)
                     }
                 } else if (filteredOrders.isEmpty()) {
-                    // رسالة عند عدم وجود نتائج للبحث
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("لا توجد طلبات تطابق معايير البحث", color = Color.Gray, fontSize = 14.sp)
                     }
                 } else {
-                    // عرض الجدول في حال وجود نتائج
                     Text("نتائج البحث (${filteredOrders.size} طلب):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // ترويسة الجدول
                     Row(modifier = Modifier.fillMaxWidth().background(Color(0xFF0D1B6D)).padding(8.dp)) {
                         Text("الطلب", color = Color.White, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                         Text("القطعة", color = Color.White, modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold)
@@ -132,7 +170,6 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
                         Text("السعر", color = Color.White, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                     }
 
-                    // محتوى الجدول
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(filteredOrders) { orderData ->
                             orderData.items.forEach { item ->
