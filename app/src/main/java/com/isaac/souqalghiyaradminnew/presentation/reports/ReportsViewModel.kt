@@ -2,7 +2,6 @@ package com.isaac.souqalghiyaradminnew.presentation.reports
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.Timestamp
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
 import com.isaac.souqalghiyaradminnew.domain.repository.OrdersRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,11 +36,14 @@ class ReportsViewModel @Inject constructor(
     val toDate = MutableStateFlow("")
     val isDateFilterEnabled = MutableStateFlow(false)
 
+    // متغير للتحقق مما إذا كان المستخدم قد ضغط على زر البحث
+    val hasSearched = MutableStateFlow(false)
+
     // جلب كل الطلبات من المستودع
-    private val allOrders = repository.getCompletedOrders() // تأكد أن هذه الدالة تجلب كل الطلبات أو التاريخية منها
+    private val allOrders = repository.getCompletedOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // قائمة الطلبات المفلترة
+    // قائمة الطلبات المفلترة تبدأ فارغة
     private val _filteredOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val filteredOrders: StateFlow<List<OrderWithItems>> = _filteredOrders
 
@@ -67,13 +69,10 @@ class ReportsViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ReportStats())
 
-    init {
-        // في البداية نعرض كل البيانات
-        searchOrders()
-    }
-
-    // دالة البحث والفلترة
+    // دالة البحث والفلترة (يتم استدعاؤها فقط عند ضغط الزر)
     fun searchOrders() {
+        hasSearched.value = true // تفعيل حالة البحث
+        
         var currentList = allOrders.value
 
         if (orderNumber.value.isNotBlank()) {
