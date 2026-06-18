@@ -31,25 +31,24 @@ class ReportsViewModel @Inject constructor(
     val partName = MutableStateFlow("")
     val orderNumber = MutableStateFlow("")
     val vehicleModel = MutableStateFlow("")
-    val orderStatus = MutableStateFlow("")
+    val orderStatus = MutableStateFlow("") // يحمل الـ String الإنجليزي للحالة
     val fromDate = MutableStateFlow("")
     val toDate = MutableStateFlow("")
     val isDateFilterEnabled = MutableStateFlow(false)
 
-    // متغير للتحقق مما إذا كان المستخدم قد ضغط على زر البحث
     val hasSearched = MutableStateFlow(false)
 
-    // جلب كل الطلبات من المستودع
-    private val allOrders = repository.getCompletedOrders()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // Eagerly: مهم جداً ليبدأ بجلب البيانات فور فتح الشاشة لتكون جاهزة للبحث
+    // واستخدمنا getAllOrdersForReports لكي نبحث في كل الحالات
+    private val allOrders = repository.getAllOrdersForReports()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    // قائمة الطلبات المفلترة تبدأ فارغة
     private val _filteredOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val filteredOrders: StateFlow<List<OrderWithItems>> = _filteredOrders
 
-    // الإحصائيات تتحدث بناءً على القائمة المفلترة فقط
+    // الإحصائيات (تحسب فقط الطلبات المكتملة لضمان دقة الأرباح)
     val stats: StateFlow<ReportStats> = _filteredOrders.combine(MutableStateFlow(Unit)) { orders, _ ->
-        val completedOrders = orders.filter { it.order.order_status == "completed" }
+        val completedOrders = orders.filter { it.order.order_status.equals("completed", ignoreCase = true) }
         var revenue = 0.0
         var costs = 0.0
         
@@ -69,9 +68,8 @@ class ReportsViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ReportStats())
 
-    // دالة البحث والفلترة (يتم استدعاؤها فقط عند ضغط الزر)
     fun searchOrders() {
-        hasSearched.value = true // تفعيل حالة البحث
+        hasSearched.value = true 
         
         var currentList = allOrders.value
 
@@ -85,7 +83,6 @@ class ReportsViewModel @Inject constructor(
             currentList = currentList.filter { it.order.order_status.equals(orderStatus.value, ignoreCase = true) }
         }
         
-        // فلترة بالتاجر أو القطعة (نبحث داخل العناصر items)
         if (merchantName.value.isNotBlank() || partName.value.isNotBlank()) {
             currentList = currentList.filter { orderData ->
                 orderData.items.any { item ->
@@ -96,19 +93,24 @@ class ReportsViewModel @Inject constructor(
             }
         }
 
-        // فلترة التاريخ
         if (isDateFilterEnabled.value && fromDate.value.isNotBlank() && toDate.value.isNotBlank()) {
             try {
                 val format = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
                 val from = format.parse(fromDate.value)?.time ?: 0L
-                val to = format.parse(toDate.value)?.time ?: Long.MAX_VALUE
+                // إضافة 86399999 مللي ثانية (23 ساعة و59 دقيقة) ليغطي اليوم بأكمله
+                val toParsed = format.parse(toDate.value)
+                val to = if (toParsed != null) toParsed.time + 86399999L else Long.MAX_VALUE
                 
                 currentList = currentList.filter { orderData ->
-                    val orderTime = orderData.order.created_at?.toDate()?.time ?: 0L
+                    // دعم كلا النوعين من التاريخ بأمان
+                    val orderTime = when (val createdAt = orderData.order.created_at) {
+                        is com.google.firebase.Timestamp -> createdAt.toDate().time
+                        else -> 0L
+                    }
                     orderTime in from..to
                 }
             } catch (e: Exception) {
-                // تجاهل الفلترة إذا كان تنسيق التاريخ خاطئاً
+                // تجاهل إذا كان التنسيق خطأ
             }
         }
 
