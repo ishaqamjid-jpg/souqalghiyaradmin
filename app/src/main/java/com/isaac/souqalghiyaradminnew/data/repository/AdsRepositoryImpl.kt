@@ -37,7 +37,7 @@ class AdsRepositoryImpl @Inject constructor(
             db.collection("advertisements").add(ad).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)..
+            Result.failure(e)
 
         }
     }
