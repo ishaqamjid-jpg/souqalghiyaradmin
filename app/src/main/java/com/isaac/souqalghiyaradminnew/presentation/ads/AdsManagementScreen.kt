@@ -22,7 +22,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.firebase.Timestamp
 import com.isaac.souqalghiyaradminnew.domain.model.Ad
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +103,11 @@ fun AdItemCard(
     onToggleStatus: () -> Unit,
     onDelete: () -> Unit
 ) {
+    // تنسيق وعرض التواريخ داخل كرت الإعلان للآدمين
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val startDateFormatted = ad.start_date?.toDate()?.let { dateFormat.format(it) } ?: "غير محدد"
+    val endDateFormatted = ad.end_date?.toDate()?.let { dateFormat.format(it) } ?: "غير محدد"
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onEdit() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -114,7 +122,10 @@ fun AdItemCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = ad.title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF0D1B6D))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "الرابط: ${ad.target_url ?: "لا يوجد"}", fontSize = 12.sp, color = Color.Gray)
+                    Text(text = "تاريخ البدء: $startDateFormatted", fontSize = 12.sp, color = Color(0xFF4CAF50))
+                    Text(text = "تاريخ الانتهاء: $endDateFormatted", fontSize = 12.sp, color = Color.Red)
                     Text(text = "الأولوية: ${ad.priority}", fontSize = 12.sp, color = Color.Gray)
                 }
                 IconButton(onClick = onDelete) {
@@ -159,6 +170,15 @@ fun AdEditorDialog(
     var priority by remember { mutableStateOf(initialAd?.priority?.toString() ?: "0") }
     var isActive by remember { mutableStateOf(initialAd?.is_active ?: true) }
 
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+    
+    var startDateStr by remember { 
+        mutableStateOf(initialAd?.start_date?.toDate()?.let { dateFormat.format(it) } ?: "") 
+    }
+    var endDateStr by remember { 
+        mutableStateOf(initialAd?.end_date?.toDate()?.let { dateFormat.format(it) } ?: "") 
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initialAd == null) "إضافة إعلان" else "تعديل الإعلان") },
@@ -166,6 +186,21 @@ fun AdEditorDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("عنوان الإعلان") }, singleLine = true)
                 OutlinedTextField(value = imageUrl, onValueChange = { imageUrl = it }, label = { Text("رابط الصورة (URL)") }, singleLine = true)
+                
+                // الخانات الجديدة للتواريخ حسب أعمدة الجدول
+                OutlinedTextField(
+                    value = startDateStr, 
+                    onValueChange = { startDateStr = it }, 
+                    label = { Text("تاريخ البدء (مثال: 2026-06-18)") }, 
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = endDateStr, 
+                    onValueChange = { endDateStr = it }, 
+                    label = { Text("تاريخ الانتهاء (مثال: 2026-06-30)") }, 
+                    singleLine = true
+                )
+
                 OutlinedTextField(value = clickActionType, onValueChange = { clickActionType = it }, label = { Text("نوع الإجراء (مثال: open_url)") }, singleLine = true)
                 OutlinedTextField(value = targetUrl, onValueChange = { targetUrl = it }, label = { Text("الرابط المستهدف") }, singleLine = true)
                 OutlinedTextField(
@@ -185,12 +220,23 @@ fun AdEditorDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    // تحويل المدخلات النصية بامان إلى قيم Timestamp للفايربيز
+                    val startTimestamp = try {
+                        if (startDateStr.isNotBlank()) Timestamp(dateFormat.parse(startDateStr)!!) else null
+                    } catch (e: Exception) { null }
+
+                    val endTimestamp = try {
+                        if (endDateStr.isNotBlank()) Timestamp(dateFormat.parse(endDateStr)!!) else null
+                    } catch (e: Exception) { null }
+
                     val newAd = Ad(
                         ad_id = initialAd?.ad_id ?: "",
                         title = title,
                         image_url = imageUrl,
                         click_action_type = clickActionType,
                         target_url = targetUrl.ifBlank { null },
+                        start_date = startTimestamp,
+                        end_date = endTimestamp,
                         priority = priority.toIntOrNull() ?: 0,
                         is_active = isActive,
                         created_at = initialAd?.created_at
