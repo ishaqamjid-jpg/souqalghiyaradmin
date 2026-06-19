@@ -8,5 +8,4 @@ interface AdsRepository {
     suspend fun addAd(ad: Ad): Result<Unit>
     suspend fun updateAd(ad: Ad): Result<Unit>
     suspend fun deleteAd(adId: String): Result<Unit>
-    
 }
