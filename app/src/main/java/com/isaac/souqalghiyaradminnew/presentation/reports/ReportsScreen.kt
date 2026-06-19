@@ -17,11 +17,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +43,6 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
 
     var expandedStatus by remember { mutableStateOf(false) }
 
-    // قائمة الحالات المنسدلة
     val statusOptions = listOf(
         "" to "الكل (فارغ)",
         "completed" to "مكتملة (completed)",
@@ -51,14 +51,13 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
         "waiting for approvel" to "انتظار الموافقة"
     )
 
-    // الحصول على النص المعروض بناءً على القيمة المختارة
     val selectedStatusText = statusOptions.find { it.first == orderStatus }?.second ?: "الكل (فارغ)"
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
             topBar = { 
                 TopAppBar(
-                    title = { Text("التقارير المتقدمة", color = Color.White, fontWeight = FontWeight.Bold) },
+                    title = { Text("التقارير الشاملة", color = Color.White, fontWeight = FontWeight.Bold) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0D1B6D))
                 ) 
             },
@@ -66,6 +65,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
         ) { padding ->
             Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
                 
+                // الإحصائيات (تُحسب الآن من جميع الطلبات فوراً)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF2196F3), Modifier.weight(1f))
                     StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFFFF9800), Modifier.weight(1f))
@@ -82,7 +82,6 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
                     
-                    // القائمة المنسدلة لحالة الطلب
                     ExposedDropdownMenuBox(
                         expanded = expandedStatus,
                         onExpandedChange = { expandedStatus = !expandedStatus },
@@ -153,41 +152,76 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
 
                 if (!hasSearched) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("قم بضبط الفلاتر (أو اتركها فارغة لعرض الكل) واضغط على زر البحث", color = Color.Gray, fontSize = 14.sp)
+                        Text("قم بضبط الفلاتر واضغط على زر البحث لظهور التفاصيل الكلية", color = Color.Gray, fontSize = 14.sp)
                     }
                 } else if (filteredOrders.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("لا توجد طلبات تطابق معايير البحث", color = Color.Gray, fontSize = 14.sp)
                     }
                 } else {
-                    Text("نتائج البحث (${filteredOrders.size} طلب):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    Text("نتائج البحث الشاملة (${filteredOrders.size} طلب):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    Row(modifier = Modifier.fillMaxWidth().background(Color(0xFF0D1B6D)).padding(8.dp)) {
-                        Text("الطلب", color = Color.White, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                        Text("القطعة", color = Color.White, modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold)
-                        Text("التاجر", color = Color.White, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                        Text("السعر", color = Color.White, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                    }
-
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    // استخدام كروت تفصيلية لعرض جميع بيانات الطلب والقطع الخاصة به بدلاً من جدول ضيق
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         items(filteredOrders) { orderData ->
-                            orderData.items.forEach { item ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .border(1.dp, Color.LightGray)
-                                        .background(Color.White)
-                                        .padding(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(orderData.order.order_id.take(5) + "..", modifier = Modifier.weight(1f), fontSize = 12.sp)
-                                    Text(item.part_name, modifier = Modifier.weight(1.5f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(item.provider_name.ifEmpty { "-" }, modifier = Modifier.weight(1f), fontSize = 12.sp)
-                                    Text("${item.selling_price}", modifier = Modifier.weight(1f), fontSize = 12.sp, color = Color(0xFF4CAF50))
-                                }
-                            }
+                            FullOrderDetailsCard(orderData)
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FullOrderDetailsCard(orderData: com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems) {
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
+    val orderDate = when (val ts = orderData.order.created_at) {
+        is com.google.firebase.Timestamp -> dateFormat.format(ts.toDate())
+        else -> "غير محدد"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(3.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // بيانات الطلب الأساسية
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "رقم الطلب: ${orderData.order.order_id}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
+                Text(text = "الحالة: ${orderData.order.order_status}", fontWeight = FontWeight.Bold, color = if (orderData.order.order_status == "completed") Color(0xFF4CAF50) else Color.Red)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = "التاريخ: $orderDate", fontSize = 12.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "المركبة: ${orderData.order.vehicle_model} - ${orderData.order.manufacture_year}", fontSize = 14.sp)
+            Text(text = "رقم الشاصي: ${orderData.order.chassis_number ?: "غير متوفر"}", fontSize = 14.sp)
+            Text(text = "رسوم التوصيل: ${orderData.order.delivery_fees} ر.ي", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = Color.LightGray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "القطع المطلوبة (${orderData.items.size}):", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.DarkGray)
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // بيانات القطع الفرعية
+            orderData.items.forEach { item ->
+                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(Color(0xFFF9F9F9), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                    Text(text = "اسم القطعة: ${item.part_name}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "الكمية: ${item.quantity}", fontSize = 12.sp)
+                        Text(text = "التاجر: ${item.provider_name.ifEmpty { "غير محدد" }}", fontSize = 12.sp)
+                        Text(text = "الفاتورة: ${item.invoice_number ?: "-"}", fontSize = 12.sp)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = "سعر الشراء: ${item.purchase_price}", fontSize = 12.sp, color = Color.Red)
+                        Text(text = "سعر البيع: ${item.selling_price}", fontSize = 12.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
                     }
                 }
             }
