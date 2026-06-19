@@ -8,7 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -31,23 +31,22 @@ class ReportsViewModel @Inject constructor(
     val partName = MutableStateFlow("")
     val orderNumber = MutableStateFlow("")
     val vehicleModel = MutableStateFlow("")
-    val orderStatus = MutableStateFlow("") // يحمل الـ String الإنجليزي للحالة
+    val orderStatus = MutableStateFlow("")
     val fromDate = MutableStateFlow("")
     val toDate = MutableStateFlow("")
     val isDateFilterEnabled = MutableStateFlow(false)
 
     val hasSearched = MutableStateFlow(false)
 
-    // Eagerly: مهم جداً ليبدأ بجلب البيانات فور فتح الشاشة لتكون جاهزة للبحث
-    // واستخدمنا getAllOrdersForReports لكي نبحث في كل الحالات
+    // جلب جميع الطلبات فوراً لغرض الإحصائيات الشاملة والبحث
     private val allOrders = repository.getAllOrdersForReports()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _filteredOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val filteredOrders: StateFlow<List<OrderWithItems>> = _filteredOrders
 
-    // الإحصائيات (تحسب فقط الطلبات المكتملة لضمان دقة الأرباح)
-    val stats: StateFlow<ReportStats> = _filteredOrders.combine(MutableStateFlow(Unit)) { orders, _ ->
+    // الإحصائيات (تم التعديل لتعتمد على allOrders لكي تعرض الإحصائيات الكلية للسيستم فور الدخول)
+    val stats: StateFlow<ReportStats> = allOrders.map { orders ->
         val completedOrders = orders.filter { it.order.order_status.equals("completed", ignoreCase = true) }
         var revenue = 0.0
         var costs = 0.0
@@ -97,12 +96,10 @@ class ReportsViewModel @Inject constructor(
             try {
                 val format = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
                 val from = format.parse(fromDate.value)?.time ?: 0L
-                // إضافة 86399999 مللي ثانية (23 ساعة و59 دقيقة) ليغطي اليوم بأكمله
                 val toParsed = format.parse(toDate.value)
                 val to = if (toParsed != null) toParsed.time + 86399999L else Long.MAX_VALUE
                 
                 currentList = currentList.filter { orderData ->
-                    // دعم كلا النوعين من التاريخ بأمان
                     val orderTime = when (val createdAt = orderData.order.created_at) {
                         is com.google.firebase.Timestamp -> createdAt.toDate().time
                         else -> 0L
@@ -110,7 +107,7 @@ class ReportsViewModel @Inject constructor(
                     orderTime in from..to
                 }
             } catch (e: Exception) {
-                // تجاهل إذا كان التنسيق خطأ
+                // تجاهل خطأ التنسيق
             }
         }
 
