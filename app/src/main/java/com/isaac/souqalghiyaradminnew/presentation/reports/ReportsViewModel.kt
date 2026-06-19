@@ -45,7 +45,7 @@ class ReportsViewModel @Inject constructor(
     private val _filteredOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val filteredOrders: StateFlow<List<OrderWithItems>> = _filteredOrders
 
-    // الإحصائيات (تم التعديل لتعتمد على allOrders لكي تعرض الإحصائيات الكلية للسيستم فور الدخول)
+    // الإحصائيات 
     val stats: StateFlow<ReportStats> = allOrders.map { orders ->
         val completedOrders = orders.filter { it.order.order_status.equals("completed", ignoreCase = true) }
         var revenue = 0.0
@@ -73,7 +73,8 @@ class ReportsViewModel @Inject constructor(
         var currentList = allOrders.value
 
         if (orderNumber.value.isNotBlank()) {
-            currentList = currentList.filter { it.order.order_id.contains(orderNumber.value, ignoreCase = true) }
+            // تم التعديل: البحث هنا أصبح يتم عن طريق order_number (الرقم التسلسلي)
+            currentList = currentList.filter { it.order.order_number.toString().contains(orderNumber.value) }
         }
         if (vehicleModel.value.isNotBlank()) {
             currentList = currentList.filter { it.order.vehicle_model.contains(vehicleModel.value, ignoreCase = true) }
