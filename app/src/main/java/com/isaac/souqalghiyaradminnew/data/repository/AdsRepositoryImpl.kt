@@ -15,7 +15,7 @@ class AdsRepositoryImpl @Inject constructor(
 ) : AdsRepository {
 
     override fun getAds(): Flow<List<Ad>> = callbackFlow {
-    val subscription = db.collection("advertisements")
+        val subscription = db.collection("advertisements")
             .orderBy("priority", Query.Direction.ASCENDING) // ترتيب الإعلانات حسب الأولوية
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -38,14 +38,14 @@ class AdsRepositoryImpl @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
-
         }
     }
 
     override suspend fun updateAd(ad: Ad): Result<Unit> {
         return try {
             if (ad.ad_id.isNotEmpty()) {
-                db.collection("advertisements:").document(ad.ad_id).set(ad).await()
+                // تم تصحيح اسم الجدول وإزالة النقطتين الرأسيتين الخاطئة
+                db.collection("advertisements").document(ad.ad_id).set(ad).await()
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Ad ID is empty"))
