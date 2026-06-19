@@ -18,7 +18,6 @@ class OrdersRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore
 ) : OrdersRepository {
 
-    // --- 1. جلب الطلبات المعلقة (للتسعير) ---
     override fun getPendingOrders(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders")
             .whereEqualTo("order_status", "pending")
@@ -49,7 +48,6 @@ class OrdersRepositoryImpl @Inject constructor(
                                 }
                             }
                         }
-                        // الفرز من الأحدث للأقدم
                         trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
                     }
                 }
@@ -57,7 +55,6 @@ class OrdersRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
-    // --- 2. جلب الطلبات قيد الموافقة (بانتظار العميل) ---
     override fun getWaitingOrders(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders")
             .whereEqualTo("order_status", "waiting for approvel")
@@ -95,7 +92,6 @@ class OrdersRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
-    // --- 3. جلب الطلبات المنتهية عموماً (مكتملة ومرفوضة) ---
     override fun getCompletedOrders(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders")
             .whereIn("order_status", listOf("completed", "canceled"))
@@ -132,7 +128,6 @@ class OrdersRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
-    // --- 4. جلب الطلبات حسب الحالة والتاريخ (للفلترة اليدوية إن لزم) ---
     override suspend fun getOrdersByDateRange(
         status: String,
         startTimestamp: Long,
@@ -149,7 +144,6 @@ class OrdersRepositoryImpl @Inject constructor(
             for (doc in snapshot.documents) {
                 val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
                 if (order != null) {
-                    // استخراج الوقت بأمان تام أياً كان نوع البيانات المحفوظة في فايربيز
                     val orderTime = when (val createdAtRaw = doc.get("created_at")) {
                         is com.google.firebase.Timestamp -> createdAtRaw.toDate().time
                         is java.util.Date -> createdAtRaw.time
@@ -182,7 +176,6 @@ class OrdersRepositoryImpl @Inject constructor(
         }
     }
 
-    // --- 5. تحديث حالة الطلب الرئيسية ورسوم التوصيل ---
     override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
         return try {
             db.collection("orders").document(orderId).update(
@@ -197,7 +190,6 @@ class OrdersRepositoryImpl @Inject constructor(
         }
     }
 
-    // --- 6. تحديث بيانات القطعة الواحدة من قبل الإدارة ---
     override suspend fun updateOrderItemAdminFields(
         orderId: String,
         itemId: String,
@@ -221,7 +213,6 @@ class OrdersRepositoryImpl @Inject constructor(
         }
     }
 
-    // --- 7. جلب كافة الطلبات بدون فلتر الحالة (لشاشة التقارير المتقدمة) ---
     override fun getAllOrdersForReports(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders")
             .addSnapshotListener { snapshot, error ->
