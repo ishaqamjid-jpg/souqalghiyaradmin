@@ -79,8 +79,8 @@ object ReportsPdfManager {
             
             // بيانات الطلب (السطر الثاني)
             yPosition += 20f
-            canvas.drawText("المركبة: ${orderData.order.vehicle_model} - ${orderData.order.manufacture_year}", 565f, yPosition, textPaint)
-            canvas.drawText("الشاصي: ${orderData.order.chassis_number ?: "لا يوجد"}", 350f, yPosition, textPaint)
+            canvas.drawText("المركبة: ${orderData.order.vehicle_model} - ${orderData.order.manufacture}", 565f, yPosition, textPaint)
+            canvas.drawText("الشاصي: ${orderData.order.order_number ?: "لا يوجد"}", 350f, yPosition, textPaint)
             canvas.drawText("رسوم التوصيل: ${orderData.order.delivery_fees} ر.ي", 180f, yPosition, textPaint)
 
             yPosition += 25f

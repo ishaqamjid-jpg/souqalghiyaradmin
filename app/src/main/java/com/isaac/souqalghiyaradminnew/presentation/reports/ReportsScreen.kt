@@ -28,7 +28,7 @@ import java.util.Locale
 @Composable
 fun ReportsScreen(
     viewModel: ReportsViewModel = hiltViewModel(),
-    isAdmin: Boolean = true // <-- تمت إضافة هذا المتغير للتحكم بظهور الإحصائيات
+    isAdmin: Boolean = true // <-- المتغير للتحكم بظهور الإحصائيات وأسعار الشراء
 ) {
     val stats by viewModel.stats.collectAsState()
     val filteredOrders by viewModel.filteredOrders.collectAsState()
@@ -58,16 +58,16 @@ fun ReportsScreen(
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
-            topBar = { 
+            topBar = {
                 TopAppBar(
                     title = { Text("التقارير الشاملة", color = Color.White, fontWeight = FontWeight.Bold) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0D1B6D))
-                ) 
+                )
             },
             containerColor = Color(0xFFF5F5F5)
         ) { padding ->
             Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
-                
+
                 // إظهار الإحصائيات فقط إذا كان المستخدم "مدير"
                 if (isAdmin) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -83,10 +83,10 @@ fun ReportsScreen(
                 }
 
                 Text("فلاتر البحث:", fontWeight = FontWeight.Bold)
-                
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
-                    
+
                     ExposedDropdownMenuBox(
                         expanded = expandedStatus,
                         onExpandedChange = { expandedStatus = !expandedStatus },
@@ -118,12 +118,12 @@ fun ReportsScreen(
                         }
                     }
                 }
-                
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(value = merchantName, onValueChange = { viewModel.merchantName.value = it }, label = { Text("اسم التاجر") }, modifier = Modifier.weight(1f), singleLine = true)
                     OutlinedTextField(value = partName, onValueChange = { viewModel.partName.value = it }, label = { Text("اسم القطعة") }, modifier = Modifier.weight(1f), singleLine = true)
                 }
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Switch(checked = isDateEnabled, onCheckedChange = { viewModel.isDateFilterEnabled.value = it })
                     Spacer(modifier = Modifier.width(8.dp))
@@ -166,13 +166,13 @@ fun ReportsScreen(
                 } else {
                     Text("نتائج البحث الشاملة (${filteredOrders.size} طلب):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(filteredOrders) { orderData ->
-                            FullOrderDetailsCard(orderData = orderData, isAdmin = isAdmin) // نمرر صلاحية المدير لكارت التفاصيل أيضاً إذا أردت إخفاء التكاليف
+                            FullOrderDetailsCard(orderData = orderData, isAdmin = isAdmin)
                         }
                     }
                 }
@@ -184,7 +184,7 @@ fun ReportsScreen(
 @Composable
 fun FullOrderDetailsCard(
     orderData: com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems,
-    isAdmin: Boolean = true // للتحكم بما يظهر داخل الكارت حسب الصلاحية
+    isAdmin: Boolean = true
 ) {
     val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
     val orderDate = when (val ts = orderData.order.created_at) {
@@ -207,10 +207,16 @@ fun FullOrderDetailsCard(
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = "التاريخ: $orderDate", fontSize = 12.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "المركبة: ${orderData.order.vehicle_model} - ${orderData.order.manufacture_year}", fontSize = 14.sp)
-            Text(text = "رقم الشاصي: ${orderData.order.chassis_number ?: "غير متوفر"}", fontSize = 14.sp)
+
+            // تم دمج الحقول الجديدة للمركبة (ماركة، اسم، موديل، وتاريخ الصنع)
+            val fullVehicleName = "${orderData.order.brand_name} ${orderData.order.vehicle_name} ${orderData.order.vehicle_model}".trim()
+            Text(text = "المركبة: $fullVehicleName - ${orderData.order.manufacture}", fontSize = 14.sp)
+
+            // تم التعديل إلى vin_number بدلاً من chassis_number
+            Text(text = "رقم الشاصي: ${orderData.order.vin_number.ifEmpty { "غير متوفر" }}", fontSize = 14.sp)
+
             Text(text = "رسوم التوصيل: ${orderData.order.delivery_fees} ر.ي", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            
+
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Color.LightGray)
             Spacer(modifier = Modifier.height(8.dp))
@@ -224,15 +230,14 @@ fun FullOrderDetailsCard(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "الكمية: ${item.quantity}", fontSize = 12.sp)
                         Text(text = "التاجر: ${item.provider_name.ifEmpty { "غير محدد" }}", fontSize = 12.sp)
-                        Text(text = "الفاتورة: ${item.invoice_number ?: "-"}", fontSize = 12.sp)
+                        Text(text = "الفاتورة: ${item.invoice_number.ifEmpty { "-" }}", fontSize = 12.sp)
                     }
-                    
-                    // إذا أردت إخفاء سعر الشراء (التكلفة) عن الموظف، فقد أضفت لك هذا الشرط:
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         if (isAdmin) {
                             Text(text = "سعر الشراء: ${item.purchase_price}", fontSize = 12.sp, color = Color.Red)
                         } else {
-                            Spacer(modifier = Modifier.weight(1f)) // لضبط المحاذاة إذا كان الموظف لا يرى الشراء
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                         Text(text = "سعر البيع: ${item.selling_price}", fontSize = 12.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
                     }
@@ -245,7 +250,7 @@ fun FullOrderDetailsCard(
 @Composable
 fun StatCard(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
-        modifier = modifier.height(80.dp), 
+        modifier = modifier.height(80.dp),
         colors = CardDefaults.cardColors(containerColor = color),
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(2.dp)

@@ -12,7 +12,7 @@ interface OrdersRepository {
     suspend fun updateOrderItemAdminFields(
         orderId: String, itemId: String, purchasePrice: Double, sellingPrice: Double, providerName: String, invoiceNumber: String
     ): Result<Unit>
-    
-    // الدالة الجديدة للتقارير (تجلب جميع الطلبات بجميع حالاتها)
+
+    // الدالة للتقارير (تجلب جميع الطلبات بجميع حالاتها)
     fun getAllOrdersForReports(): Flow<List<OrderWithItems>>
 }

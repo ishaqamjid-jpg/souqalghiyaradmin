@@ -9,10 +9,12 @@ data class Order(
     val vehicle_name: String = "",
     val vehicle_model: String = "",
     val manufacture: String = "",
-    val vin_number: String = "",
+    val location: String = "",
     val delivery_location: String = "",
     val delivery_fees: Double = 0.0,
     val order_status: String = "pending",
+    val order_number: Int = 1,
+    val vin_number: String = "",
     val created_at: Timestamp? = null
 )
 
