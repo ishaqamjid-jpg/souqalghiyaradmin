@@ -4,8 +4,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -25,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.Timestamp
 import com.isaac.souqalghiyaradminnew.domain.model.Ad
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -183,11 +186,24 @@ fun AdEditorDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initialAd == null) "إضافة إعلان" else "تعديل الإعلان") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("عنوان الإعلان") }, singleLine = true)
-                OutlinedTextField(value = imageUrl, onValueChange = { imageUrl = it }, label = { Text("رابط الصورة (URL)") }, singleLine = true)
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()), // إضافة السكرول لتفادي اختفاء الخانات
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = title, 
+                    onValueChange = { title = it }, 
+                    label = { Text("عنوان الإعلان") }, 
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = imageUrl, 
+                    onValueChange = { imageUrl = it }, 
+                    label = { Text("رابط الصورة (URL)") }, 
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri) // تفعيل كيبورد الروابط
+                )
                 
-                // الخانات الجديدة للتواريخ حسب أعمدة الجدول
                 OutlinedTextField(
                     value = startDateStr, 
                     onValueChange = { startDateStr = it }, 
@@ -201,8 +217,19 @@ fun AdEditorDialog(
                     singleLine = true
                 )
 
-                OutlinedTextField(value = clickActionType, onValueChange = { clickActionType = it }, label = { Text("نوع الإجراء (مثال: open_url)") }, singleLine = true)
-                OutlinedTextField(value = targetUrl, onValueChange = { targetUrl = it }, label = { Text("الرابط المستهدف") }, singleLine = true)
+                OutlinedTextField(
+                    value = clickActionType, 
+                    onValueChange = { clickActionType = it }, 
+                    label = { Text("نوع الإجراء (مثال: open_url)") }, 
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = targetUrl, 
+                    onValueChange = { targetUrl = it }, 
+                    label = { Text("الرابط المستهدف") }, 
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri) // تفعيل كيبورد الروابط
+                )
                 OutlinedTextField(
                     value = priority,
                     onValueChange = { priority = it },
@@ -220,14 +247,26 @@ fun AdEditorDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    // تحويل المدخلات النصية بامان إلى قيم Timestamp للفايربيز
-                    val startTimestamp = try {
-                        if (startDateStr.isNotBlank()) Timestamp(dateFormat.parse(startDateStr)!!) else null
-                    } catch (e: Exception) { null }
+                    // دالة لتحويل النص إلى Timestamp مع تثبيت الوقت لـ 12:00 AM تماماً
+                    fun parseToMidnightTimestamp(dateStr: String): Timestamp? {
+                        return try {
+                            if (dateStr.isNotBlank()) {
+                                val parsedDate = dateFormat.parse(dateStr)
+                                val calendar = Calendar.getInstance().apply {
+                                    if (parsedDate != null) time = parsedDate
+                                    // تصفير الوقت ليصبح منتصف الليل
+                                    set(Calendar.HOUR_OF_DAY, 0)
+                                    set(Calendar.MINUTE, 0)
+                                    set(Calendar.SECOND, 0)
+                                    set(Calendar.MILLISECOND, 0)
+                                }
+                                Timestamp(calendar.time)
+                            } else null
+                        } catch (e: Exception) { null }
+                    }
 
-                    val endTimestamp = try {
-                        if (endDateStr.isNotBlank()) Timestamp(dateFormat.parse(endDateStr)!!) else null
-                    } catch (e: Exception) { null }
+                    val startTimestamp = parseToMidnightTimestamp(startDateStr)
+                    val endTimestamp = parseToMidnightTimestamp(endDateStr)
 
                     val newAd = Ad(
                         ad_id = initialAd?.ad_id ?: "",
