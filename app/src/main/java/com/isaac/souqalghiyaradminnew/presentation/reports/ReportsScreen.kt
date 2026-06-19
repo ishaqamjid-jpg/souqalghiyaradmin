@@ -26,7 +26,10 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
+fun ReportsScreen(
+    viewModel: ReportsViewModel = hiltViewModel(),
+    isAdmin: Boolean = true // <-- تمت إضافة هذا المتغير للتحكم بظهور الإحصائيات
+) {
     val stats by viewModel.stats.collectAsState()
     val filteredOrders by viewModel.filteredOrders.collectAsState()
     val hasSearched by viewModel.hasSearched.collectAsState()
@@ -65,17 +68,19 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
         ) { padding ->
             Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
                 
-                // الإحصائيات (تُحسب الآن من جميع الطلبات فوراً)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF2196F3), Modifier.weight(1f))
-                    StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFFFF9800), Modifier.weight(1f))
-                    StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF44336), Modifier.weight(1f))
-                    StatCard("الأرباح", "${stats.netProfit}", Color(0xFF4CAF50), Modifier.weight(1f))
-                }
+                // إظهار الإحصائيات فقط إذا كان المستخدم "مدير"
+                if (isAdmin) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF2196F3), Modifier.weight(1f))
+                        StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFFFF9800), Modifier.weight(1f))
+                        StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF44336), Modifier.weight(1f))
+                        StatCard("الأرباح", "${stats.netProfit}", Color(0xFF4CAF50), Modifier.weight(1f))
+                    }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 Text("فلاتر البحث:", fontWeight = FontWeight.Bold)
                 
@@ -162,13 +167,12 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
                     Text("نتائج البحث الشاملة (${filteredOrders.size} طلب):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // استخدام كروت تفصيلية لعرض جميع بيانات الطلب والقطع الخاصة به بدلاً من جدول ضيق
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(filteredOrders) { orderData ->
-                            FullOrderDetailsCard(orderData)
+                            FullOrderDetailsCard(orderData = orderData, isAdmin = isAdmin) // نمرر صلاحية المدير لكارت التفاصيل أيضاً إذا أردت إخفاء التكاليف
                         }
                     }
                 }
@@ -178,7 +182,10 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
 }
 
 @Composable
-fun FullOrderDetailsCard(orderData: com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems) {
+fun FullOrderDetailsCard(
+    orderData: com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems,
+    isAdmin: Boolean = true // للتحكم بما يظهر داخل الكارت حسب الصلاحية
+) {
     val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
     val orderDate = when (val ts = orderData.order.created_at) {
         is com.google.firebase.Timestamp -> dateFormat.format(ts.toDate())
@@ -219,8 +226,14 @@ fun FullOrderDetailsCard(orderData: com.isaac.souqalghiyaradminnew.domain.model.
                         Text(text = "التاجر: ${item.provider_name.ifEmpty { "غير محدد" }}", fontSize = 12.sp)
                         Text(text = "الفاتورة: ${item.invoice_number ?: "-"}", fontSize = 12.sp)
                     }
+                    
+                    // إذا أردت إخفاء سعر الشراء (التكلفة) عن الموظف، فقد أضفت لك هذا الشرط:
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "سعر الشراء: ${item.purchase_price}", fontSize = 12.sp, color = Color.Red)
+                        if (isAdmin) {
+                            Text(text = "سعر الشراء: ${item.purchase_price}", fontSize = 12.sp, color = Color.Red)
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f)) // لضبط المحاذاة إذا كان الموظف لا يرى الشراء
+                        }
                         Text(text = "سعر البيع: ${item.selling_price}", fontSize = 12.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
                     }
                 }
