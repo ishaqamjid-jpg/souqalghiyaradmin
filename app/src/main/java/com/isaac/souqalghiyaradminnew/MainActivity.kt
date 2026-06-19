@@ -42,10 +42,12 @@ class MainActivity : ComponentActivity() {
                     val isLoggedIn = sharedPref.getBoolean("is_logged_in", false)
                     val savedAdminName = sharedPref.getString("admin_name", "مدير النظام") ?: "مدير النظام"
                     val savedAdminId = sharedPref.getString("admin_id", "") ?: ""
+                    val savedAdminPermissions = sharedPref.getString("admin_permissions", "employee") ?: "employee" // جلب الصلاحية
 
                     // حفظ القيم في State للتعامل معها خلال الجلسة الحالية
                     var currentSessionId by remember { mutableStateOf(savedAdminId) }
                     var currentSessionName by remember { mutableStateOf(savedAdminName) }
+                    var currentSessionPermissions by remember { mutableStateOf(savedAdminPermissions) }
 
                     val startDest = if (isLoggedIn) "dashboard" else "login"
 
@@ -58,6 +60,7 @@ class MainActivity : ComponentActivity() {
                                     // تحديث بيانات الجلسة الحالية عند الدخول بنجاح
                                     currentSessionId = id
                                     currentSessionName = name
+                                    currentSessionPermissions = permissions
 
                                     navController.navigate("dashboard") {
                                         popUpTo("login") { inclusive = true }
@@ -82,6 +85,7 @@ class MainActivity : ComponentActivity() {
                                     sharedPref.edit().clear().apply()
                                     currentSessionId = ""
                                     currentSessionName = ""
+                                    currentSessionPermissions = ""
                                     navController.navigate("login") {
                                         popUpTo("dashboard") { inclusive = true }
                                     }
@@ -111,7 +115,10 @@ class MainActivity : ComponentActivity() {
 
                         // --- 7. شاشة التقارير ---
                         composable("reports") {
-                            ReportsScreen()
+                            // تمرير الصلاحية للتحكم في ظهور الإحصائيات والتكاليف
+                            ReportsScreen(
+                                isAdmin = currentSessionPermissions == "admin"
+                            )
                         }
 
                         // --- 8. شاشة عملاء التطبيق ---
