@@ -16,6 +16,7 @@ class AdsViewModel @Inject constructor(
     private val repository: AdsRepository
 ) : ViewModel() {
 
+    // جلب الإعلانات وتحديثها لحظياً
     val ads = repository.getAds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -23,20 +24,23 @@ class AdsViewModel @Inject constructor(
     fun saveAd(ad: Ad) {
         viewModelScope.launch {
             if (ad.ad_id.isEmpty()) {
+                // إضافة إعلان جديد مع تعيين وقت الإنشاء
                 repository.addAd(ad.copy(created_at = Timestamp.now()))
             } else {
+                // تحديث إعلان موجود
                 repository.updateAd(ad)
             }
         }
     }
 
-    // دالة لتفعيل أو إيقاف الإعلان السريع
+    // دالة لتفعيل أو إيقاف الإعلان السريع (تغيير الـ is_active)
     fun toggleAdStatus(ad: Ad) {
         viewModelScope.launch {
             repository.updateAd(ad.copy(is_active = !ad.is_active))
         }
     }
 
+    // دالة لحذف الإعلان
     fun deleteAd(adId: String) {
         viewModelScope.launch {
             repository.deleteAd(adId)
