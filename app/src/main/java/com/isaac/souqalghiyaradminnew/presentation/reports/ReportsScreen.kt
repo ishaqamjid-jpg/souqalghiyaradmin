@@ -28,7 +28,7 @@ import java.util.Locale
 @Composable
 fun ReportsScreen(
     viewModel: ReportsViewModel = hiltViewModel(),
-    isAdmin: Boolean = true // <-- المتغير للتحكم بظهور الإحصائيات وأسعار الشراء
+    isAdmin: Boolean = true 
 ) {
     val stats by viewModel.stats.collectAsState()
     val filteredOrders by viewModel.filteredOrders.collectAsState()
@@ -68,7 +68,6 @@ fun ReportsScreen(
         ) { padding ->
             Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
 
-                // إظهار الإحصائيات فقط إذا كان المستخدم "مدير"
                 if (isAdmin) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF2196F3), Modifier.weight(1f))
@@ -85,7 +84,7 @@ fun ReportsScreen(
                 Text("فلاتر البحث:", fontWeight = FontWeight.Bold)
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب (التسلسلي)") }, modifier = Modifier.weight(1f), singleLine = true)
 
                     ExposedDropdownMenuBox(
                         expanded = expandedStatus,
@@ -201,18 +200,18 @@ fun FullOrderDetailsCard(
         Column(modifier = Modifier.padding(16.dp)) {
             // بيانات الطلب الأساسية
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = "رقم الطلب: ${orderData.order.order_id}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
+                // تم التعديل: إظهار order_number بدلاً من order_id
+                Text(text = "رقم الطلب: ${orderData.order.order_number}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
                 Text(text = "الحالة: ${orderData.order.order_status}", fontWeight = FontWeight.Bold, color = if (orderData.order.order_status == "completed") Color(0xFF4CAF50) else Color.Red)
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = "التاريخ: $orderDate", fontSize = 12.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // تم دمج الحقول الجديدة للمركبة (ماركة، اسم، موديل، وتاريخ الصنع)
             val fullVehicleName = "${orderData.order.brand_name} ${orderData.order.vehicle_name} ${orderData.order.vehicle_model}".trim()
             Text(text = "المركبة: $fullVehicleName - ${orderData.order.manufacture}", fontSize = 14.sp)
 
-            // تم التعديل إلى vin_number بدلاً من chassis_number
+            // تم التعديل: هنا نظهر الـ vin_number (رقم الشاصي)
             Text(text = "رقم الشاصي: ${orderData.order.vin_number.ifEmpty { "غير متوفر" }}", fontSize = 14.sp)
 
             Text(text = "رسوم التوصيل: ${orderData.order.delivery_fees} ر.ي", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
