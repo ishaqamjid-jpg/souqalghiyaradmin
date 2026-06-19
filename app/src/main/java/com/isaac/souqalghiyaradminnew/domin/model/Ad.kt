@@ -1,17 +1,25 @@
 package com.isaac.souqalghiyaradminnew.domain.model
+
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.PropertyName
 
+data class Ad(
+ @get:Exclude
+ var ad_id: String = "",
 
+ var title: String = "",
+ var image_url: String = "",
+ var click_action_type: String = "",
+ var target_url: String? = null,
+ var start_date: Timestamp? = null,
+ var end_date: Timestamp? = null,
+ var priority: Int = 0,
 
-   data class Ad(
-    val ad_id: String = "",
-    val title: String = "",
-    val image_url: String = "",
-    val click_action_type: String = "",
-    val target_url: String? = null,
-    val start_date: Timestamp? = null,
-    val end_date: Timestamp? = null,
-    val priority: Int = 0,
-    val is_active: Boolean = true,
-    val created_at: Timestamp? = null
+ // إجبار الفايربيز على استخدام هذا الاسم عند الرفع (get) وعند الجلب (set)
+ @get:PropertyName("is_active")
+ @set:PropertyName("is_active")
+ var is_active: Boolean = true,
+
+ var created_at: Timestamp? = null
 )

@@ -1,5 +1,6 @@
 package com.isaac.souqalghiyaradminnew.presentation.ads
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,12 +12,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,7 +40,7 @@ fun AdsManagementScreen(
     onBackClick: () -> Unit
 ) {
     val ads by viewModel.ads.collectAsState()
-    
+
     var showDialog by remember { mutableStateOf(false) }
     var adToEdit by remember { mutableStateOf<Ad?>(null) }
 
@@ -106,7 +109,6 @@ fun AdItemCard(
     onToggleStatus: () -> Unit,
     onDelete: () -> Unit
 ) {
-    // تنسيق وعرض التواريخ داخل كرت الإعلان للآدمين
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val startDateFormatted = ad.start_date?.toDate()?.let { dateFormat.format(it) } ?: "غير محدد"
     val endDateFormatted = ad.end_date?.toDate()?.let { dateFormat.format(it) } ?: "غير محدد"
@@ -174,12 +176,33 @@ fun AdEditorDialog(
     var isActive by remember { mutableStateOf(initialAd?.is_active ?: true) }
 
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
-    
-    var startDateStr by remember { 
-        mutableStateOf(initialAd?.start_date?.toDate()?.let { dateFormat.format(it) } ?: "") 
+    val context = LocalContext.current
+
+    var startDateStr by remember {
+        mutableStateOf(initialAd?.start_date?.toDate()?.let { dateFormat.format(it) } ?: "")
     }
-    var endDateStr by remember { 
-        mutableStateOf(initialAd?.end_date?.toDate()?.let { dateFormat.format(it) } ?: "") 
+    var endDateStr by remember {
+        mutableStateOf(initialAd?.end_date?.toDate()?.let { dateFormat.format(it) } ?: "")
+    }
+
+    // دالة مساعدة لفتح DatePickerDialog
+    val showDatePicker = { currentDate: String, onDateSelected: (String) -> Unit ->
+        val calendar = Calendar.getInstance()
+        if (currentDate.isNotBlank()) {
+            try {
+                dateFormat.parse(currentDate)?.let { calendar.time = it }
+            } catch (e: Exception) { /* تجاهل الخطأ واستخدم تاريخ اليوم */ }
+        }
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val selectedDate = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
+                onDateSelected(dateFormat.format(selectedDate.time))
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
     }
 
     AlertDialog(
@@ -187,55 +210,84 @@ fun AdEditorDialog(
         title = { Text(if (initialAd == null) "إضافة إعلان" else "تعديل الإعلان") },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()), // إضافة السكرول لتفادي اختفاء الخانات
+                modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedTextField(
-                    value = title, 
-                    onValueChange = { title = it }, 
-                    label = { Text("عنوان الإعلان") }, 
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = imageUrl, 
-                    onValueChange = { imageUrl = it }, 
-                    label = { Text("رابط الصورة (URL)") }, 
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("عنوان الإعلان") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri) // تفعيل كيبورد الروابط
-                )
-                
-                OutlinedTextField(
-                    value = startDateStr, 
-                    onValueChange = { startDateStr = it }, 
-                    label = { Text("تاريخ البدء (مثال: 2026-06-18)") }, 
-                    singleLine = true
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
-                    value = endDateStr, 
-                    onValueChange = { endDateStr = it }, 
-                    label = { Text("تاريخ الانتهاء (مثال: 2026-06-30)") }, 
-                    singleLine = true
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("رابط الصورة (URL)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    modifier = Modifier.fillMaxWidth()
                 )
 
+                // حقل تاريخ البدء مع DatePicker
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = startDateStr,
+                        onValueChange = { },
+                        label = { Text("تاريخ البدء") },
+                        singleLine = true,
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = "اختر التاريخ") }
+                    )
+                    // Spacer شفاف لالتقاط النقرات وفتح التقويم
+                    Spacer(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showDatePicker(startDateStr) { startDateStr = it } }
+                    )
+                }
+
+                // حقل تاريخ الانتهاء مع DatePicker
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = endDateStr,
+                        onValueChange = { },
+                        label = { Text("تاريخ الانتهاء") },
+                        singleLine = true,
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = "اختر التاريخ") }
+                    )
+                    Spacer(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showDatePicker(endDateStr) { endDateStr = it } }
+                    )
+                }
+
                 OutlinedTextField(
-                    value = clickActionType, 
-                    onValueChange = { clickActionType = it }, 
-                    label = { Text("نوع الإجراء (مثال: open_url)") }, 
-                    singleLine = true
+                    value = clickActionType,
+                    onValueChange = { clickActionType = it },
+                    label = { Text("نوع الإجراء (مثال: open_url)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
-                    value = targetUrl, 
-                    onValueChange = { targetUrl = it }, 
-                    label = { Text("الرابط المستهدف") }, 
+                    value = targetUrl,
+                    onValueChange = { targetUrl = it },
+                    label = { Text("الرابط المستهدف") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri) // تفعيل كيبورد الروابط
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = priority,
                     onValueChange = { priority = it },
                     label = { Text("الأولوية (رقم)") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("الإعلان نشط:")
@@ -247,14 +299,12 @@ fun AdEditorDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    // دالة لتحويل النص إلى Timestamp مع تثبيت الوقت لـ 12:00 AM تماماً
                     fun parseToMidnightTimestamp(dateStr: String): Timestamp? {
                         return try {
                             if (dateStr.isNotBlank()) {
                                 val parsedDate = dateFormat.parse(dateStr)
                                 val calendar = Calendar.getInstance().apply {
                                     if (parsedDate != null) time = parsedDate
-                                    // تصفير الوقت ليصبح منتصف الليل
                                     set(Calendar.HOUR_OF_DAY, 0)
                                     set(Calendar.MINUTE, 0)
                                     set(Calendar.SECOND, 0)
