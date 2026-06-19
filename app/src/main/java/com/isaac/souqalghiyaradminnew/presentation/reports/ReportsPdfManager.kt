@@ -72,15 +72,17 @@ object ReportsPdfManager {
             canvas.drawRect(20f, yPosition - 15f, 575f, yPosition + 40f, paint)
             paint.style = Paint.Style.FILL
 
-            // بيانات الطلب (السطر الأول)
-            canvas.drawText("رقم الطلب: ${orderData.order.order_id}", 565f, yPosition, boldTextPaint)
+            // السطر الأول
+            // تم التعديل: إظهار order_number
+            canvas.drawText("رقم الطلب: ${orderData.order.order_number}", 565f, yPosition, boldTextPaint)
             canvas.drawText("الحالة: ${orderData.order.order_status}", 350f, yPosition, textPaint)
             canvas.drawText("التاريخ: $orderDate", 180f, yPosition, textPaint)
             
-            // بيانات الطلب (السطر الثاني)
+            // السطر الثاني
             yPosition += 20f
             canvas.drawText("المركبة: ${orderData.order.vehicle_model} - ${orderData.order.manufacture}", 565f, yPosition, textPaint)
-            canvas.drawText("الشاصي: ${orderData.order.order_number ?: "لا يوجد"}", 350f, yPosition, textPaint)
+            // تم التعديل: إظهار vin_number للشاصي
+            canvas.drawText("الشاصي: ${orderData.order.vin_number.ifEmpty { "لا يوجد" }}", 350f, yPosition, textPaint)
             canvas.drawText("رسوم التوصيل: ${orderData.order.delivery_fees} ر.ي", 180f, yPosition, textPaint)
 
             yPosition += 25f
@@ -108,7 +110,7 @@ object ReportsPdfManager {
                 canvas.drawText(item.provider_name.ifEmpty { "غير محدد" }, 380f, yPosition, textPaint)
                 canvas.drawText(item.invoice_number ?: "-", 280f, yPosition, textPaint)
                 canvas.drawText("${item.purchase_price}", 190f, yPosition, textPaint)
-                canvas.drawText("${item.selling_price}", 110f, yPosition, boldTextPaint) // إبراز سعر البيع
+                canvas.drawText("${item.selling_price}", 110f, yPosition, boldTextPaint)
 
                 yPosition += 15f
             }
