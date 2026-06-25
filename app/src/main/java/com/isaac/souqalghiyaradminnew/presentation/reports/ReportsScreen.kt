@@ -200,9 +200,16 @@ fun FullOrderDetailsCard(
         Column(modifier = Modifier.padding(16.dp)) {
             // بيانات الطلب الأساسية
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                // تم التعديل: إظهار order_number بدلاً من order_id
                 Text(text = "رقم الطلب: ${orderData.order.order_number}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
-                Text(text = "الحالة: ${orderData.order.order_status}", fontWeight = FontWeight.Bold, color = if (orderData.order.order_status == "completed") Color(0xFF4CAF50) else Color.Red)
+                Text(
+                    text = "الحالة: ${orderData.order.order_status}", 
+                    fontWeight = FontWeight.Bold, 
+                    color = when(orderData.order.order_status.lowercase()) {
+                        "completed" -> Color(0xFF4CAF50)
+                        "canceled" -> Color.Red
+                        else -> Color.DarkGray
+                    }
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = "التاريخ: $orderDate", fontSize = 12.sp, color = Color.Gray)
@@ -211,10 +218,19 @@ fun FullOrderDetailsCard(
             val fullVehicleName = "${orderData.order.brand_name} ${orderData.order.vehicle_name} ${orderData.order.vehicle_model}".trim()
             Text(text = "المركبة: $fullVehicleName - ${orderData.order.manufacture}", fontSize = 14.sp)
 
-            // تم التعديل: هنا نظهر الـ vin_number (رقم الشاصي)
             Text(text = "رقم الشاصي: ${orderData.order.vin_number.ifEmpty { "غير متوفر" }}", fontSize = 14.sp)
 
             Text(text = "رسوم التوصيل: ${orderData.order.delivery_fees} ر.ي", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+
+            // -------------- الإضافة الخاصة بالملاحظات ----------------
+            if (orderData.order.order_status.equals("completed", ignoreCase = true) && orderData.order.approval_notes.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "ملاحظات الموافقة: ${orderData.order.approval_notes}", fontSize = 14.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Medium)
+            } else if (orderData.order.order_status.equals("canceled", ignoreCase = true) && orderData.order.disapproval_notes.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "سبب الرفض: ${orderData.order.disapproval_notes}", fontSize = 14.sp, color = Color.Red, fontWeight = FontWeight.Medium)
+            }
+            // ----------------------------------------------------
 
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Color.LightGray)
