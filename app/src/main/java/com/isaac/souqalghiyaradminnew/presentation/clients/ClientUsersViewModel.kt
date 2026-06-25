@@ -30,7 +30,7 @@ class ClientUsersViewModel @Inject constructor() : ViewModel() {
         if (query.isBlank()) {
             allClients // إذا كان البحث فارغاً نعرض الكل
         } else {
-            // فلترة القائمة بناءً على رقم الهاتف (أو يمكنك إضافة الفلترة بالاسم أيضاً إذا أردت)
+            // فلترة القائمة بناءً على رقم الهاتف
             allClients.filter { it.phone_number.contains(query, ignoreCase = true) }
         }
     }.stateIn(
@@ -60,11 +60,25 @@ class ClientUsersViewModel @Inject constructor() : ViewModel() {
         _searchQuery.value = newQuery
     }
 
-    // دالة لحظر / فك حظر العميل بنقرة واحدة
+    // دالة لحظر / فك حظر العميل بنقرة واحدة (الزر الخارجي)
     fun toggleClientStatus(clientId: String, currentStatus: String) {
         val newStatus = if (currentStatus == "active") "not_active" else "active"
         viewModelScope.launch {
             db.collection("users").document(clientId).update("status", newStatus)
+        }
+    }
+
+    // الدالة الجديدة: تحديث جميع بيانات العميل (بعد التعديل من البطاقة الموسعة)
+    fun updateClientDetails(client: users) {
+        viewModelScope.launch {
+            val updateMap = mapOf(
+                "display_name" to client.display_name,
+                "phone_number" to client.phone_number,
+                "fcm_token" to client.fcm_token,
+                "status" to client.status,
+                "number_of_rejections" to client.number_of_rejections
+            )
+            db.collection("users").document(client.user_id).update(updateMap)
         }
     }
 }
