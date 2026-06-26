@@ -21,6 +21,10 @@ import com.isaac.souqalghiyaradminnew.presentation.ads.AdsManagementScreen
 import com.isaac.souqalghiyaradminnew.presentation.constants.ConstantsScreen
 import com.isaac.souqalghiyaradminnew.presentation.reports.ReportsScreen
 import com.isaac.souqalghiyaradminnew.presentation.clients.ClientUsersScreen
+// استيراد واجهات الإعدادات الجديدة
+import com.isaac.souqalghiyaradminnew.presentation.settings.SettingsScreen
+import com.isaac.souqalghiyaradminnew.presentation.settings.BackupScreen
+import com.isaac.souqalghiyaradminnew.presentation.settings.AdvancedOrdersScreen
 import com.isaac.souqalghiyaradminnew.ui.theme.SuqalghiyarAdminTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -80,6 +84,7 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToOrders = { navController.navigate("orders") },
                                 onNavigateToConstants = { navController.navigate("constants") },
                                 onNavigateToReports = { navController.navigate("reports") },
+                                onNavigateToSettings = { navController.navigate("settings") }, // <-- تمت إضافة الانتقال للإعدادات هنا
                                 onLogoutClick = {
                                     // مسح البيانات محلياً والعودة لشاشة الدخول
                                     sharedPref.edit().clear().apply()
@@ -104,29 +109,6 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // --- 5. شاشة الإعلانات ---
-
-
-
-composable("settings") {
-    SettingsScreen(
-        onNavigateBack = { navController.popBackStack() },
-        onNavigateToBackup = { navController.navigate("backup") },
-        onNavigateToAdvancedOrders = { navController.navigate("advanced_orders") }
-    )
-}
-
-composable("backup") {
-    BackupScreen(onNavigateBack = { navController.popBackStack() })
-}
-
-composable("advanced_orders") {
-    AdvancedOrdersScreen(onNavigateBack = { navController.popBackStack() })
-}
-
-
-
-
-
                         composable("ads") {
                             AdsManagementScreen(onBackClick = { navController.popBackStack() })
                         }
@@ -147,6 +129,23 @@ composable("advanced_orders") {
                         // --- 8. شاشة عملاء التطبيق ---
                         composable("client_users") {
                             ClientUsersScreen(onBackClick = { navController.popBackStack() })
+                        }
+
+                        // --- 9. إعدادات النظام المتقدمة ---
+                        composable("settings") {
+                            SettingsScreen(
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToBackup = { navController.navigate("backup") },
+                                onNavigateToAdvancedOrders = { navController.navigate("advanced_orders") }
+                            )
+                        }
+
+                        composable("backup") {
+                            BackupScreen(onNavigateBack = { navController.popBackStack() })
+                        }
+
+                        composable("advanced_orders") {
+                            AdvancedOrdersScreen(onNavigateBack = { navController.popBackStack() })
                         }
                     }
                 }
