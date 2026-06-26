@@ -25,7 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun MainDashboardScreen(
     adminName: String,
-    currentUserId: String, // نحتاج تمرير الـ ID لبدء المراقبة
+    currentUserId: String, 
     viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToEmpUsers: () -> Unit,
     onNavigateToClientUsers: () -> Unit,
@@ -33,20 +33,19 @@ fun MainDashboardScreen(
     onNavigateToOrders: () -> Unit,
     onNavigateToConstants: () -> Unit,
     onNavigateToReports: () -> Unit,
-    onLogoutClick: () -> Unit // يجب أن تمسح الـ SharedPreferences وتنتقل لشاشة تسجيل الدخول
+    onNavigateToSettings: () -> Unit, // تمت إضافة مسار الإعدادات هنا
+    onLogoutClick: () -> Unit 
 ) {
     val pendingOrders by viewModel.pendingOrdersCount.collectAsState()
     val isAccountBanned by viewModel.isAccountBanned.collectAsState()
     val userPermissions by viewModel.userPermissions.collectAsState()
 
-    // 1. بدء المراقبة بمجرد فتح الشاشة
     LaunchedEffect(currentUserId) {
         if (currentUserId.isNotEmpty()) {
             viewModel.startMonitoringAccount(currentUserId)
         }
     }
 
-    // 2. طرد المستخدم فوراً إذا تم حظره
     LaunchedEffect(isAccountBanned) {
         if (isAccountBanned) {
             onLogoutClick()
@@ -91,7 +90,6 @@ fun MainDashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    // متاح للجميع (مدير وموظف)
                     item {
                         DashboardCard(
                             title = "الطلبات والتسعير",
@@ -111,7 +109,6 @@ fun MainDashboardScreen(
                         )
                     }
 
-                    // صلاحيات المدير (Admin) فقط
                     if (userPermissions == "admin") {
                         item {
                             DashboardCard(
@@ -127,7 +124,7 @@ fun MainDashboardScreen(
                                 title = "عملاء التطبيق",
                                 icon = Icons.Default.People,
                                 color = Color(0xFF2196F3),
-                                onClick = onNavigateToClientUsers // تم تفعيل الزر هنا
+                                onClick = onNavigateToClientUsers 
                             )
                         }
 
@@ -146,6 +143,16 @@ fun MainDashboardScreen(
                                 icon = Icons.Default.Category,
                                 color = Color(0xFF00BCD4),
                                 onClick = onNavigateToConstants
+                            )
+                        }
+                        
+                        // الخيار الجديد المخصص للمدير فقط
+                        item {
+                            DashboardCard(
+                                title = "إعدادات النظام",
+                                icon = Icons.Default.Settings,
+                                color = Color(0xFF607D8B),
+                                onClick = onNavigateToSettings 
                             )
                         }
                     }
