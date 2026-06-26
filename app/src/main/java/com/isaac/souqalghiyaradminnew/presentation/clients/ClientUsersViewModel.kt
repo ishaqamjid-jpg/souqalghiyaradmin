@@ -68,7 +68,7 @@ class ClientUsersViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // الدالة الجديدة: تحديث جميع بيانات العميل (بعد التعديل من البطاقة الموسعة)
+    // الدالة: تحديث جميع بيانات العميل (بعد التعديل من البطاقة الموسعة)
     fun updateClientDetails(client: users) {
         viewModelScope.launch {
             val updateMap = mapOf(
@@ -79,6 +79,26 @@ class ClientUsersViewModel @Inject constructor() : ViewModel() {
                 "number_of_rejections" to client.number_of_rejections
             )
             db.collection("users").document(client.user_id).update(updateMap)
+        }
+    }
+
+    // --- الدوال الجديدة للإضافة والحذف ---
+
+    // إضافة عميل جديد
+    fun addClient(client: users) {
+        viewModelScope.launch {
+            // توليد معرف جديد تلقائي (Auto-ID) من فايربيز
+            val newDocRef = db.collection("users").document()
+            // نسخ العميل ووضع المعرف الجديد
+            val newClient = client.copy(user_id = newDocRef.id)
+            newDocRef.set(newClient)
+        }
+    }
+
+    // حذف عميل
+    fun deleteClient(clientId: String) {
+        viewModelScope.launch {
+            db.collection("users").document(clientId).delete()
         }
     }
 }
