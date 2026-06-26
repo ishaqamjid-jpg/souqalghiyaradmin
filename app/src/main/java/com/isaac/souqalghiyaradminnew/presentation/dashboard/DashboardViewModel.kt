@@ -17,37 +17,32 @@ import javax.inject.Inject
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val adminRepository: AdminRepository,
-    private val ordersRepository: OrdersRepository // تم حقن مستودع الطلبات هنا
+    private val ordersRepository: OrdersRepository 
 ) : ViewModel() {
 
-    // جلب عدد الطلبات المعلقة الحقيقي بشكل لحظي من الفايربيز
     val pendingOrdersCount: StateFlow<Int> = ordersRepository.getPendingOrders()
-        .map { orders -> orders.size } // نأخذ حجم القائمة (عدد الطلبات)
+        .map { orders -> orders.size } 
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    // حالات الأمان والمراقبة
     private val _isAccountBanned = MutableStateFlow(false)
     val isAccountBanned = _isAccountBanned.asStateFlow()
 
     private val _userPermissions = MutableStateFlow("employee")
     val userPermissions = _userPermissions.asStateFlow()
 
-    // دالة لمراقبة حساب الموظف بمجرد دخوله
     fun startMonitoringAccount(currentUserId: String) {
         viewModelScope.launch {
             adminRepository.observeAdminProfile(currentUserId).collect { user ->
                 if (user == null || user.status != "active") {
-                    _isAccountBanned.value = true // طرد فوري
+                    _isAccountBanned.value = true 
                 } else {
-                    _userPermissions.value = user.user_permissions // تحديث الصلاحية
+                    _userPermissions.value = user.user_permissions 
                 }
             }
         }
     }
 
-    // دالة لتسجيل الخروج الإرادي
     fun logout(onLogoutSuccess: () -> Unit) {
-        // سيتم استدعاء مسح الـ SharedPreferences من الـ Screen
         onLogoutSuccess()
     }
 }
