@@ -104,6 +104,29 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // --- 5. شاشة الإعلانات ---
+
+
+
+composable("settings") {
+    SettingsScreen(
+        onNavigateBack = { navController.popBackStack() },
+        onNavigateToBackup = { navController.navigate("backup") },
+        onNavigateToAdvancedOrders = { navController.navigate("advanced_orders") }
+    )
+}
+
+composable("backup") {
+    BackupScreen(onNavigateBack = { navController.popBackStack() })
+}
+
+composable("advanced_orders") {
+    AdvancedOrdersScreen(onNavigateBack = { navController.popBackStack() })
+}
+
+
+
+
+
                         composable("ads") {
                             AdsManagementScreen(onBackClick = { navController.popBackStack() })
                         }
