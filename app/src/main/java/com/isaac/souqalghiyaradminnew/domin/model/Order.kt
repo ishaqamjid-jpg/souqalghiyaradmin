@@ -15,8 +15,8 @@ data class Order(
     val order_status: String = "pending",
     val order_number: Int = 1,
     val vin_number: String = "",
- val approval_notes: string ="",
-val disapproval_notes: string ="",
+ val approval_notes:String = "",
+    val disapproval_notes: String ="",
     val created_at: Timestamp? = null
 )
 
