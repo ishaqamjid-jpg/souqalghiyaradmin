@@ -24,16 +24,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
 import com.isaac.souqalghiyaradminnew.domain.model.Order
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
+import com.isaac.souqalghiyaradminnew.domain.model.OrderItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,12 +86,13 @@ fun AdvancedOrdersScreen(
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), color = Color(0xFFE91E63))
                 } else if (result != null) {
-                    // نموذج تعديل الطلب
+                    // عرض نموذج تعديل الطلب والقطع
                     OrderEditForm(
-                        order = result!!,
-                        onSave = { updatedOrder ->
-                            viewModel.updateOrder(
+                        data = result!!,
+                        onSave = { updatedOrder, updatedItems ->
+                            viewModel.updateOrderAndItems(
                                 updatedOrder,
+                                updatedItems,
                                 onSuccess = { Toast.makeText(context, "تم الحفظ بنجاح!", Toast.LENGTH_SHORT).show() },
                                 onError = { Toast.makeText(context, "خطأ: $it", Toast.LENGTH_LONG).show() }
                             )
@@ -119,43 +112,100 @@ fun AdvancedOrdersScreen(
     }
 }
 
-// 3. نموذج تفاصيل وتعديل الطلب
+// 3. نموذج تفاصيل وتعديل الطلب والقطع
 @Composable
-fun OrderEditForm(order: Order, onSave: (Order) -> Unit, onDelete: (String) -> Unit) {
-    var brandName by remember { mutableStateOf(order.brand_name) }
-    var vehicleName by remember { mutableStateOf(order.vehicle_name) }
-    var vehicleModel by remember { mutableStateOf(order.vehicle_model) }
-    var vinNumber by remember { mutableStateOf(order.vin_number) }
-    var location by remember { mutableStateOf(order.location) }
-    var deliveryLocation by remember { mutableStateOf(order.delivery_location) }
-    var deliveryFees by remember { mutableStateOf(order.delivery_fees.toString()) }
-    var orderStatus by remember { mutableStateOf(order.order_status) }
-    var approvalNotes by remember { mutableStateOf(order.approval_notes) }
-    var disapprovalNotes by remember { mutableStateOf(order.disapproval_notes) }
+fun OrderEditForm(
+    data: OrderWithItemsData, 
+    onSave: (Order, List<OrderItem>) -> Unit, 
+    onDelete: (String) -> Unit
+) {
+    val order = data.order
+    
+    // تم استخدام remember(order.order_id) لحل مشكلة الخانات الفارغة!
+    var brandName by remember(order.order_id) { mutableStateOf(order.brand_name) }
+    var vehicleName by remember(order.order_id) { mutableStateOf(order.vehicle_name) }
+    var vehicleModel by remember(order.order_id) { mutableStateOf(order.vehicle_model) }
+    var manufacture by remember(order.order_id) { mutableStateOf(order.manufacture) }
+    var vinNumber by remember(order.order_id) { mutableStateOf(order.vin_number) }
+    var location by remember(order.order_id) { mutableStateOf(order.location) }
+    var deliveryLocation by remember(order.order_id) { mutableStateOf(order.delivery_location) }
+    var deliveryFees by remember(order.order_id) { mutableStateOf(order.delivery_fees.toString()) }
+    var orderStatus by remember(order.order_id) { mutableStateOf(order.order_status) }
+    var approvalNotes by remember(order.order_id) { mutableStateOf(order.approval_notes) }
+    var disapprovalNotes by remember(order.order_id) { mutableStateOf(order.disapproval_notes) }
+
+    // قائمة القطع القابلة للتعديل
+    var itemsList by remember(order.order_id) { mutableStateOf(data.items) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .background(Color(0xFF1E1E1E), RoundedCornerShape(12.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("بيانات الطلب (يمكنك التعديل مباشرة):", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        // --- قسم بيانات الطلب الأساسية ---
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF1E1E1E), RoundedCornerShape(12.dp))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("بيانات الطلب الأساسية:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            
+            OutlinedTextField(value = brandName, onValueChange = { brandName = it }, label = { Text("الماركة") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = vehicleName, onValueChange = { vehicleName = it }, label = { Text("المركبة") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = vehicleModel, onValueChange = { vehicleModel = it }, label = { Text("الموديل") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = manufacture, onValueChange = { manufacture = it }, label = { Text("بلد الصنع") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = vinNumber, onValueChange = { vinNumber = it }, label = { Text("رقم القعادة") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = location, onValueChange = { location = it }, label = { Text("المحافظة") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = deliveryLocation, onValueChange = { deliveryLocation = it }, label = { Text("العنوان") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = deliveryFees, onValueChange = { deliveryFees = it }, label = { Text("رسوم التوصيل") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedTextField(value = orderStatus, onValueChange = { orderStatus = it }, label = { Text("حالة الطلب") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = approvalNotes, onValueChange = { approvalNotes = it }, label = { Text("ملاحظات الموافقة") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = disapprovalNotes, onValueChange = { disapprovalNotes = it }, label = { Text("سبب الرفض") }, modifier = Modifier.fillMaxWidth())
+        }
+
+        // --- قسم بيانات القطع ---
+        Text("القطع المطلوبة:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         
-        OutlinedTextField(value = brandName, onValueChange = { brandName = it }, label = { Text("الماركة") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = vehicleName, onValueChange = { vehicleName = it }, label = { Text("المركبة") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = vehicleModel, onValueChange = { vehicleModel = it }, label = { Text("الموديل") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = vinNumber, onValueChange = { vinNumber = it }, label = { Text("رقم القعادة") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = location, onValueChange = { location = it }, label = { Text("المحافظة") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = deliveryLocation, onValueChange = { deliveryLocation = it }, label = { Text("العنوان") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = deliveryFees, onValueChange = { deliveryFees = it }, label = { Text("رسوم التوصيل") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-        OutlinedTextField(value = orderStatus, onValueChange = { orderStatus = it }, label = { Text("حالة الطلب (pending, priced, completed, canceled)") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = approvalNotes, onValueChange = { approvalNotes = it }, label = { Text("ملاحظات الموافقة") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = disapprovalNotes, onValueChange = { disapprovalNotes = it }, label = { Text("سبب الرفض") }, modifier = Modifier.fillMaxWidth())
+        itemsList.forEachIndexed { index, item ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF2C2C2C), RoundedCornerShape(8.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("قطعة رقم ${index + 1}", color = Color(0xFFE91E63), fontWeight = FontWeight.Bold)
+                
+                OutlinedTextField(
+                    value = item.part_name, 
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(part_name = newValue) } }, 
+                    label = { Text("اسم القطعة") }, modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = item.provider_name, 
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(provider_name = newValue) } }, 
+                    label = { Text("اسم الموفر") }, modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = item.purchase_price.toString(), 
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(purchase_price = newValue.toDoubleOrNull() ?: 0.0) } }, 
+                    label = { Text("سعر الشراء") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = item.selling_price.toString(), 
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(selling_price = newValue.toDoubleOrNull() ?: 0.0) } }, 
+                    label = { Text("سعر البيع") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // --- أزرار الحفظ والحذف ---
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Button(
                 onClick = { onDelete(order.order_id) },
@@ -163,7 +213,7 @@ fun OrderEditForm(order: Order, onSave: (Order) -> Unit, onDelete: (String) -> U
             ) {
                 Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.White)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("حذف الطلب نهائياً")
+                Text("حذف نهائياً")
             }
 
             Button(
@@ -172,6 +222,7 @@ fun OrderEditForm(order: Order, onSave: (Order) -> Unit, onDelete: (String) -> U
                         brand_name = brandName,
                         vehicle_name = vehicleName,
                         vehicle_model = vehicleModel,
+                        manufacture = manufacture,
                         vin_number = vinNumber,
                         location = location,
                         delivery_location = deliveryLocation,
@@ -180,7 +231,7 @@ fun OrderEditForm(order: Order, onSave: (Order) -> Unit, onDelete: (String) -> U
                         approval_notes = approvalNotes,
                         disapproval_notes = disapprovalNotes
                     )
-                    onSave(updatedOrder)
+                    onSave(updatedOrder, itemsList)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
