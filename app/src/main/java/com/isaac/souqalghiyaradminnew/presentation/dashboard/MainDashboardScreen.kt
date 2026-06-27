@@ -1,5 +1,9 @@
 package com.isaac.souqalghiyaradminnew.presentation.dashboard
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,12 +18,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+
+// دالة مساعدة للتحقق من توفر الإنترنت
+fun isInternetAvailable(context: Context): Boolean {
+    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork ?: return false
+    val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return when {
+        activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+        activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+        activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+        else -> false
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,15 +51,17 @@ fun MainDashboardScreen(
     onNavigateToOrders: () -> Unit,
     onNavigateToConstants: () -> Unit,
     onNavigateToReports: () -> Unit,
-    onNavigateToSettings: () -> Unit, // تمت إضافة مسار الإعدادات هنا
+    onNavigateToSettings: () -> Unit, 
     onLogoutClick: () -> Unit 
 ) {
     val pendingOrders by viewModel.pendingOrdersCount.collectAsState()
     val isAccountBanned by viewModel.isAccountBanned.collectAsState()
     val userPermissions by viewModel.userPermissions.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(currentUserId) {
-        if (currentUserId.isNotEmpty()) {
+        // التحقق من الإنترنت قبل بدء مراقبة الحساب
+        if (currentUserId.isNotEmpty() && isInternetAvailable(context)) {
             viewModel.startMonitoringAccount(currentUserId)
         }
     }
@@ -49,6 +69,15 @@ fun MainDashboardScreen(
     LaunchedEffect(isAccountBanned) {
         if (isAccountBanned) {
             onLogoutClick()
+        }
+    }
+
+    // دالة لتنفيذ الإجراء فقط إذا كان هناك إنترنت
+    fun performActionIfConnected(action: () -> Unit) {
+        if (isInternetAvailable(context)) {
+            action()
+        } else {
+            Toast.makeText(context, "لا يوجد اتصال بالإنترنت. يرجى التحقق من الشبكة.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -62,7 +91,9 @@ fun MainDashboardScreen(
                         titleContentColor = Color.White
                     ),
                     actions = {
-                        IconButton(onClick = { viewModel.logout(onLogoutClick) }) {
+                        IconButton(onClick = { 
+                            performActionIfConnected { viewModel.logout(onLogoutClick) } 
+                        }) {
                             Icon(Icons.Default.ExitToApp, contentDescription = "تسجيل خروج", tint = Color.Red)
                         }
                     }
@@ -96,7 +127,7 @@ fun MainDashboardScreen(
                             icon = Icons.Default.ShoppingCart,
                             color = Color(0xFFE91E63),
                             badgeCount = pendingOrders,
-                            onClick = onNavigateToOrders
+                            onClick = { performActionIfConnected(onNavigateToOrders) }
                         )
                     }
 
@@ -105,7 +136,7 @@ fun MainDashboardScreen(
                             title = "التقارير والإحصائيات",
                             icon = Icons.Default.Assessment,
                             color = Color(0xFF4CAF50),
-                            onClick = onNavigateToReports
+                            onClick = { performActionIfConnected(onNavigateToReports) }
                         )
                     }
 
@@ -115,7 +146,7 @@ fun MainDashboardScreen(
                                 title = "إدارة الإعلانات",
                                 icon = Icons.Default.Campaign,
                                 color = Color(0xFFFF9800),
-                                onClick = onNavigateToAds
+                                onClick = { performActionIfConnected(onNavigateToAds) }
                             )
                         }
 
@@ -124,7 +155,7 @@ fun MainDashboardScreen(
                                 title = "عملاء التطبيق",
                                 icon = Icons.Default.People,
                                 color = Color(0xFF2196F3),
-                                onClick = onNavigateToClientUsers 
+                                onClick = { performActionIfConnected(onNavigateToClientUsers) }
                             )
                         }
 
@@ -133,7 +164,7 @@ fun MainDashboardScreen(
                                 title = "موظفي الإدارة",
                                 icon = Icons.Default.AdminPanelSettings,
                                 color = Color(0xFF9C27B0),
-                                onClick = onNavigateToEmpUsers
+                                onClick = { performActionIfConnected(onNavigateToEmpUsers) }
                             )
                         }
 
@@ -142,17 +173,16 @@ fun MainDashboardScreen(
                                 title = "إدارة الثوابت",
                                 icon = Icons.Default.Category,
                                 color = Color(0xFF00BCD4),
-                                onClick = onNavigateToConstants
+                                onClick = { performActionIfConnected(onNavigateToConstants) }
                             )
                         }
                         
-                        // الخيار الجديد المخصص للمدير فقط
                         item {
                             DashboardCard(
                                 title = "إعدادات النظام",
                                 icon = Icons.Default.Settings,
                                 color = Color(0xFF607D8B),
-                                onClick = onNavigateToSettings 
+                                onClick = { performActionIfConnected(onNavigateToSettings) }
                             )
                         }
                     }
