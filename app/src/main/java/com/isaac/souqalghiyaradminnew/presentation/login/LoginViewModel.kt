@@ -2,6 +2,8 @@ package com.isaac.souqalghiyaradminnew.presentation.login
 
 import android.app.Application
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.isaac.souqalghiyaradminnew.domain.repository.AdminRepository
@@ -52,7 +54,26 @@ class LoginViewModel @Inject constructor(
         _rememberMe.value = checked
     }
 
+    // دالة داخلية للتحقق من الإنترنت
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return when {
+            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+            else -> false
+        }
+    }
+
     fun login(onSuccess: (String, String, String) -> Unit) {
+        // 1. التحقق من الاتصال بالإنترنت أولاً
+        if (!isNetworkAvailable()) {
+            _uiState.value = _uiState.value.copy(error = "لا يوجد اتصال بالإنترنت. يرجى التحقق من الشبكة.")
+            return
+        }
+
         val phone = _phoneNumber.value.trim()
         val pass = _password.value.trim()
 
@@ -64,7 +85,7 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
-            // الاتصال بـ Repository للبحث عن الموظف برقم الهاتف وكلمة المرور
+            // 2. الاتصال بـ Repository (والذي يجلب البيانات من Firebase)
             val user = adminRepository.loginAdmin(phone, pass)
 
             if (user != null && user.status == "active") {
