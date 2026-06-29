@@ -12,7 +12,8 @@ interface OrdersRepository {
     suspend fun updateOrderItemAdminFields(
         orderId: String, itemId: String, purchasePrice: Double, sellingPrice: Double, providerName: String, invoiceNumber: String
     ): Result<Unit>
-
-    // الدالة للتقارير (تجلب جميع الطلبات بجميع حالاتها)
     fun getAllOrdersForReports(): Flow<List<OrderWithItems>>
+    
+    // إضافة: مسح إشعار الإدارة عند معالجة الطلب
+    suspend fun deleteAdminAlarmByOrderNumber(orderNumber: Long): Result<Unit>
 }
