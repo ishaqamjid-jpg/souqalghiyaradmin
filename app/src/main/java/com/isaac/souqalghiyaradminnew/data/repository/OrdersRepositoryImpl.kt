@@ -247,4 +247,22 @@ class OrdersRepositoryImpl @Inject constructor(
             }
         awaitClose { subscription.remove() }
     }
+
+    // الدالة الجديدة لمسح الإشعار باستخدام رقم الطلب
+    override suspend fun deleteAdminAlarmByOrderNumber(orderNumber: Long): Result<Unit> {
+        return try {
+            val snapshot = db.collection("admin_alarm")
+                .whereEqualTo("order_number", orderNumber)
+                .get()
+                .await()
+                
+            for (doc in snapshot.documents) {
+                db.collection("admin_alarm").document(doc.id).delete().await()
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
 }
