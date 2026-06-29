@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity() {
                     val savedAdminId = sharedPref.getString("admin_id", "") ?: ""
                     val savedAdminPermissions = sharedPref.getString("admin_permissions", "employee") ?: "employee"
 
+                    // الاشتراك المباشر لاستقبال الإشعارات الخارجية دون واجهة داخلية
                     if (isLoggedIn) {
                         FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
                     }
@@ -87,6 +88,7 @@ class MainActivity : ComponentActivity() {
                                     currentSessionName = name
                                     currentSessionPermissions = permissions
 
+                                    // تفعيل الإشعارات للمدير بعد الدخول بنجاح
                                     FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
 
                                     navController.navigate("dashboard") {
@@ -108,6 +110,7 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToReports = { navController.navigate("reports") },
                                 onNavigateToSettings = { navController.navigate("settings") },
                                 onLogoutClick = {
+                                    // إلغاء الاشتراك حتى لا يستلم إشعارات بعد تسجيل الخروج
                                     FirebaseMessaging.getInstance().unsubscribeFromTopic("admin_notifications")
                                     
                                     sharedPref.edit().clear().apply()
@@ -124,29 +127,21 @@ class MainActivity : ComponentActivity() {
                         composable("UserEmp") {
                             UsersSettingsScreen(onBackClick = { navController.popBackStack() })
                         }
-
                         composable("orders") {
                             OrdersManagementScreen()
                         }
-
                         composable("ads") {
                             AdsManagementScreen(onBackClick = { navController.popBackStack() })
                         }
-
                         composable("constants") {
                             ConstantsScreen(onBackClick = { navController.popBackStack() })
                         }
-
                         composable("reports") {
-                            ReportsScreen(
-                                isAdmin = currentSessionPermissions == "admin"
-                            )
+                            ReportsScreen(isAdmin = currentSessionPermissions == "admin")
                         }
-
                         composable("client_users") {
                             ClientUsersScreen(onBackClick = { navController.popBackStack() })
                         }
-
                         composable("settings") {
                             SettingsScreen(
                                 onNavigateBack = { navController.popBackStack() },
@@ -154,11 +149,9 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToAdvancedOrders = { navController.navigate("advanced_orders") }
                             )
                         }
-
                         composable("backup") {
                             BackupScreen(onNavigateBack = { navController.popBackStack() })
                         }
-
                         composable("advanced_orders") {
                             AdvancedOrdersScreen(onNavigateBack = { navController.popBackStack() })
                         }
