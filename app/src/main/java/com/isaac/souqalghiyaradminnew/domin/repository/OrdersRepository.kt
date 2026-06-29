@@ -14,6 +14,6 @@ interface OrdersRepository {
     ): Result<Unit>
     fun getAllOrdersForReports(): Flow<List<OrderWithItems>>
     
-    // إضافة: مسح إشعار الإدارة عند معالجة الطلب
+    // الدالة الخاصة بمسح إشعار الإدارة عند معالجة الطلب
     suspend fun deleteAdminAlarmByOrderNumber(orderNumber: Long): Result<Unit>
 }
