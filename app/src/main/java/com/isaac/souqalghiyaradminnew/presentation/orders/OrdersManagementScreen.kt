@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -78,7 +79,6 @@ fun OrdersManagementScreen(
                 when (selectedTab) {
                     0 -> PendingOrdersSection(viewModel)
                     1 -> WaitingOrdersSection(viewModel)
-                    // تمرير الـ StateFlow المخصص لكل قسم لمنع تداخل البيانات
                     2 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders)
                     3 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders)
                 }
@@ -105,7 +105,7 @@ fun WaitingOrdersSection(viewModel: OrdersViewModel) {
 fun HistoricalOrdersSection(
     viewModel: OrdersViewModel,
     status: String,
-    ordersFlow: StateFlow<List<OrderWithItems>> // تم إضافة هذا المعامل
+    ordersFlow: StateFlow<List<OrderWithItems>>
 ) {
     val context = LocalContext.current
     var fromDate by remember { mutableStateOf<Long?>(null) }
@@ -114,7 +114,6 @@ fun HistoricalOrdersSection(
     var fromDateText by remember { mutableStateOf("من تاريخ") }
     var toDateText by remember { mutableStateOf("إلى تاريخ") }
 
-    // قراءة البيانات من الـ Flow الممرر خصيصاً لهذا القسم
     val historicalOrders by ordersFlow.collectAsState()
     val isLoading by viewModel.isLoadingHistorical.collectAsState()
 
@@ -221,6 +220,7 @@ fun OrdersList(orders: List<OrderWithItems>, viewModel: OrdersViewModel, isEdita
 fun OrderExpandableCard(data: OrderWithItems, viewModel: OrdersViewModel, isEditable: Boolean) {
     val order = data.order
     val items = data.items
+    val context = LocalContext.current // نحتاجه لتوليد الـ PDF
 
     var expanded by remember { mutableStateOf(false) }
     var deliveryFees by remember { mutableStateOf(order.delivery_fees.toString()) }
@@ -364,7 +364,23 @@ fun OrderExpandableCard(data: OrderWithItems, viewModel: OrdersViewModel, isEdit
                             }
                         }
                     } else {
-                        Text("رسوم التوصيل: ${order.delivery_fees}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
+                        // تعديل هنا: إضافة زر تصدير PDF بجوار نص رسوم التوصيل
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("رسوم التوصيل: ${order.delivery_fees}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
+
+                            OutlinedButton(
+                                onClick = { OrderPdfManager.generateOrderPdf(context, data) },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D))
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("تصدير PDF", fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
