@@ -1,119 +1,107 @@
 package com.isaac.souqalghiyaradminnew.presentation.settings
 
+import android.content.Context
+import android.os.Environment
 import android.widget.Toast
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
-import androidx.hilt.navigation.compose.hiltViewModel
 
-// ViewModel الخاص بالنسخ الاحتياطي لربط العمليات
 @HiltViewModel
-class BackupViewModel @Inject constructor() : ViewModel() {
-    
-    fun exportAsExcel(onResult: (String) -> Unit) {
+class BackupViewModel @Inject constructor(
+    private val db: FirebaseFirestore
+) : ViewModel() {
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
+    // قائمة بأسماء الجداول (Collections) في الفايربيز التي سيتم أخذ نسخة منها
+    private val collectionsToBackup = listOf(
+        "users", "users_emp", "orders", "order_items", 
+        "advertisements", "brands", "location", 
+        "quality_types", "spare_parts_categories"
+    )
+
+    fun exportBackup(context: Context, format: String) {
         viewModelScope.launch {
-            // هنا سيتم كتابة كود جلب البيانات وتحويلها لـ CSV (Excel)
-            onResult("تم تجهيز النسخة بصيغة Excel (CSV) بنجاح!")
-        }
-    }
+            try {
+                _isLoading.value = true
+                val backupDataJson = JSONObject()
+                val csvBuilder = StringBuilder()
 
-    fun exportAsAppFormat(onResult: (String) -> Unit) {
-        viewModelScope.launch {
-            // هنا سيتم كتابة كود جلب البيانات وتحويلها لـ JSON (صيغة التطبيق)
-            onResult("تم تجهيز النسخة بصيغة التطبيق (JSON) بنجاح!")
-        }
-    }
-}
+                // المرور على جميع الجداول لجلبها من Firebase مباشرة
+                for (collectionName in collectionsToBackup) {
+                    val snapshot = db.collection(collectionName).get().await()
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun BackupScreen(
-    viewModel: BackupViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
-) {
-    val context = LocalContext.current
+                    // مصفوفة للـ JSON
+                    val docsArray = JSONArray()
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("النسخة الاحتياطية", color = Color.White) },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, contentDescription = "", tint = Color.White) }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E1E1E))
-                )
-            },
-            containerColor = Color(0xFF121212)
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(Icons.Default.CloudDownload, contentDescription = "", tint = Color(0xFF4CAF50), modifier = Modifier.size(100.dp))
-                Spacer(Modifier.height(24.dp))
-                Text("اختر صيغة استخراج النسخة الاحتياطية:", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(32.dp))
+                    // بناء ملف Excel (CSV)
+                    if (snapshot.documents.isNotEmpty()) {
+                        csvBuilder.append("--- جدول: $collectionName ---\n")
+                        
+                        // استخراج أسماء الأعمدة من أول مستند
+                        val firstDoc = snapshot.documents.first().data ?: emptyMap<String, Any>()
+                        val headers = firstDoc.keys.toList()
+                        csvBuilder.append(headers.joinToString(",")).append("\n")
 
-                // زر استخراج بصيغة Excel
-                Button(
-                    onClick = {
-                        viewModel.exportAsExcel { msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        for (doc in snapshot.documents) {
+                            val dataMap = doc.data ?: emptyMap()
+                            
+                            // إضافة للـ JSON
+                            docsArray.put(JSONObject(dataMap))
+
+                            // إضافة للـ Excel
+                            val row = headers.map { key ->
+                                val value = dataMap[key]?.toString() ?: ""
+                                // تنظيف النص ليتناسب مع خلايا الإكسل
+                                "\"${value.replace("\"", "\"\"").replace("\n", " ")}\""
+                            }
+                            csvBuilder.append(row.joinToString(",")).append("\n")
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF217346)), // لون الإكسل الأخضر
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(55.dp)
-                ) {
-                    Icon(Icons.Default.TableChart, contentDescription = "Excel", tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("استخراج بصيغة Excel (CSV)", fontSize = 16.sp)
+                        csvBuilder.append("\n\n") // مسافة بين الجداول في الإكسل
+                    }
+                    backupDataJson.put(collectionName, docsArray)
                 }
 
-                Spacer(Modifier.height(16.dp))
+                // إنشاء المجلد والحفظ في الهاتف (مجلد Documents)
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+                if (!dir.exists()) dir.mkdirs()
 
-                // زر استخراج بصيغة التطبيق
-                Button(
-                    onClick = {
-                        viewModel.exportAsAppFormat { msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63)), // لون التطبيق
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(55.dp)
-                ) {
-                    Icon(Icons.Default.Code, contentDescription = "App Format", tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("استخراج بصيغة التطبيق (JSON)", fontSize = 16.sp)
+                if (format == "json") {
+                    val file = File(dir, "SouqAlghiyar_Backup_$timestamp.json")
+                    FileWriter(file).use { it.write(backupDataJson.toString(4)) }
+                    Toast.makeText(context, "تم حفظ نسخة التطبيق (JSON) في المستندات", Toast.LENGTH_LONG).show()
+                } else if (format == "excel") {
+                    val file = File(dir, "SouqAlghiyar_Backup_$timestamp.csv")
+                    // إضافة (BOM) لكي يقرأ الإكسل اللغة العربية بشكل صحيح
+                    val bom = "\uFEFF"
+                    FileWriter(file).use { 
+                        it.write(bom)
+                        it.write(csvBuilder.toString()) 
+                    }
+                    Toast.makeText(context, "تم حفظ نسخة (Excel) في المستندات", Toast.LENGTH_LONG).show()
                 }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "حدث خطأ: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                _isLoading.value = false
             }
         }
     }
