@@ -67,8 +67,11 @@ fun AdvancedOrdersScreen(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFFE91E63), unfocusedBorderColor = Color.Gray
+                            focusedTextColor = Color.White, 
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFFE91E63), 
+                            unfocusedBorderColor = Color.Gray,
+                            cursorColor = Color(0xFFE91E63)
                         )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -137,6 +140,17 @@ fun OrderEditForm(
     // قائمة القطع القابلة للتعديل
     var itemsList by remember(order.order_id) { mutableStateOf(data.items) }
 
+    // ألوان مخصصة لجميع حقول الإدخال لضمان النص الأبيض والظهور الواضح
+    val customTextFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        focusedBorderColor = Color(0xFFE91E63),
+        unfocusedBorderColor = Color.Gray,
+        focusedLabelColor = Color(0xFFE91E63),
+        unfocusedLabelColor = Color.Gray,
+        cursorColor = Color(0xFFE91E63)
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -154,17 +168,17 @@ fun OrderEditForm(
         ) {
             Text("بيانات الطلب الأساسية:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             
-            OutlinedTextField(value = brandName, onValueChange = { brandName = it }, label = { Text("الماركة") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = vehicleName, onValueChange = { vehicleName = it }, label = { Text("المركبة") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = vehicleModel, onValueChange = { vehicleModel = it }, label = { Text("الموديل") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = manufacture, onValueChange = { manufacture = it }, label = { Text("بلد الصنع") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = vinNumber, onValueChange = { vinNumber = it }, label = { Text("رقم القعادة") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = location, onValueChange = { location = it }, label = { Text("المحافظة") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = deliveryLocation, onValueChange = { deliveryLocation = it }, label = { Text("العنوان") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = deliveryFees, onValueChange = { deliveryFees = it }, label = { Text("رسوم التوصيل") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-            OutlinedTextField(value = orderStatus, onValueChange = { orderStatus = it }, label = { Text("حالة الطلب") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = approvalNotes, onValueChange = { approvalNotes = it }, label = { Text("ملاحظات الموافقة") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = disapprovalNotes, onValueChange = { disapprovalNotes = it }, label = { Text("سبب الرفض") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = brandName, onValueChange = { brandName = it }, label = { Text("الماركة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = vehicleName, onValueChange = { vehicleName = it }, label = { Text("المركبة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = vehicleModel, onValueChange = { vehicleModel = it }, label = { Text("الموديل") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = manufacture, onValueChange = { manufacture = it }, label = { Text("بلد الصنع") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = vinNumber, onValueChange = { vinNumber = it }, label = { Text("رقم القعادة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = location, onValueChange = { location = it }, label = { Text("المحافظة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = deliveryLocation, onValueChange = { deliveryLocation = it }, label = { Text("العنوان") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = deliveryFees, onValueChange = { deliveryFees = it }, label = { Text("رسوم التوصيل") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = customTextFieldColors)
+            OutlinedTextField(value = orderStatus, onValueChange = { orderStatus = it }, label = { Text("حالة الطلب") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = approvalNotes, onValueChange = { approvalNotes = it }, label = { Text("ملاحظات الموافقة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
+            OutlinedTextField(value = disapprovalNotes, onValueChange = { disapprovalNotes = it }, label = { Text("سبب الرفض") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
         }
 
         // --- قسم بيانات القطع ---
@@ -183,22 +197,22 @@ fun OrderEditForm(
                 OutlinedTextField(
                     value = item.part_name, 
                     onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(part_name = newValue) } }, 
-                    label = { Text("اسم القطعة") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("اسم القطعة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors
                 )
                 OutlinedTextField(
                     value = item.provider_name, 
                     onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(provider_name = newValue) } }, 
-                    label = { Text("اسم الموفر") }, modifier = Modifier.fillMaxWidth()
+                    label = { Text("اسم الموفر") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors
                 )
                 OutlinedTextField(
                     value = item.purchase_price.toString(), 
                     onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(purchase_price = newValue.toDoubleOrNull() ?: 0.0) } }, 
-                    label = { Text("سعر الشراء") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    label = { Text("سعر الشراء") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = customTextFieldColors
                 )
                 OutlinedTextField(
                     value = item.selling_price.toString(), 
                     onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(selling_price = newValue.toDoubleOrNull() ?: 0.0) } }, 
-                    label = { Text("سعر البيع") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    label = { Text("سعر البيع") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = customTextFieldColors
                 )
             }
         }
