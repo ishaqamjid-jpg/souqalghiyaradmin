@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // الاشتراك في الإشعارات العامة للآدمن
+        // الاشتراك في الإشعارات العامة للآدمن (كخيار إضافي)
         if (isLoggedIn) {
             FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
         }

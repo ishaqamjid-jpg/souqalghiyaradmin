@@ -1,9 +1,11 @@
 package com.isaac.souqalghiyaradminnew.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.isaac.souqalghiyaradminnew.domain.model.Order
 import com.isaac.souqalghiyaradminnew.domain.model.OrderItem
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
+import com.isaac.souqalghiyaradminnew.domain.model.admin_alarm
 import com.isaac.souqalghiyaradminnew.domain.repository.OrdersRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,11 +30,6 @@ class OrdersRepositoryImpl @Inject constructor(
                 }
                 if (snapshot != null) {
                     val orderList = mutableListOf<OrderWithItems>()
-                    if (snapshot.isEmpty) {
-                        trySend(emptyList()).isSuccess
-                        return@addSnapshotListener
-                    }
-
                     CoroutineScope(Dispatchers.IO).launch {
                         snapshot.documents.forEach { doc ->
                             val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
@@ -43,9 +40,7 @@ class OrdersRepositoryImpl @Inject constructor(
                                         itemDoc.toObject(OrderItem::class.java)?.copy(item_id = itemDoc.id)
                                     }
                                     orderList.add(OrderWithItems(order, items))
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
+                                } catch (e: Exception) { e.printStackTrace() }
                             }
                         }
                         trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
@@ -65,11 +60,6 @@ class OrdersRepositoryImpl @Inject constructor(
                 }
                 if (snapshot != null) {
                     val orderList = mutableListOf<OrderWithItems>()
-                    if (snapshot.isEmpty) {
-                        trySend(emptyList()).isSuccess
-                        return@addSnapshotListener
-                    }
-
                     CoroutineScope(Dispatchers.IO).launch {
                         snapshot.documents.forEach { doc ->
                             val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
@@ -80,9 +70,7 @@ class OrdersRepositoryImpl @Inject constructor(
                                         itemDoc.toObject(OrderItem::class.java)?.copy(item_id = itemDoc.id)
                                     }
                                     orderList.add(OrderWithItems(order, items))
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
+                                } catch (e: Exception) { e.printStackTrace() }
                             }
                         }
                         trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
@@ -102,10 +90,6 @@ class OrdersRepositoryImpl @Inject constructor(
                 }
                 if (snapshot != null) {
                     val orderList = mutableListOf<OrderWithItems>()
-                    if (snapshot.isEmpty) {
-                        trySend(emptyList()).isSuccess
-                        return@addSnapshotListener
-                    }
                     CoroutineScope(Dispatchers.IO).launch {
                         snapshot.documents.forEach { doc ->
                             val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
@@ -116,9 +100,7 @@ class OrdersRepositoryImpl @Inject constructor(
                                         itemDoc.toObject(OrderItem::class.java)?.copy(item_id = itemDoc.id)
                                     }
                                     orderList.add(OrderWithItems(order, items))
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
+                                } catch (e: Exception) { e.printStackTrace() }
                             }
                         }
                         trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
@@ -134,119 +116,33 @@ class OrdersRepositoryImpl @Inject constructor(
         endTimestamp: Long
     ): List<OrderWithItems> {
         return try {
-            val snapshot = db.collection("orders")
-                .whereEqualTo("order_status", status)
-                .get()
-                .await()
-
+            val snapshot = db.collection("orders").whereEqualTo("order_status", status).get().await()
             val orderList = mutableListOf<OrderWithItems>()
-
             for (doc in snapshot.documents) {
-                val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
-                if (order != null) {
-                    val orderTime = when (val createdAtRaw = doc.get("created_at")) {
-                        is com.google.firebase.Timestamp -> createdAtRaw.toDate().time
-                        is java.util.Date -> createdAtRaw.time
-                        is Number -> createdAtRaw.toLong()
-                        else -> 0L
-                    }
-
-                    if (orderTime in startTimestamp..endTimestamp) {
-                        try {
-                            val itemsSnapshot = db.collection("orders")
-                                .document(order.order_id)
-                                .collection("items")
-                                .get()
-                                .await()
-
-                            val items = itemsSnapshot.documents.mapNotNull { itemDoc ->
-                                itemDoc.toObject(OrderItem::class.java)?.copy(item_id = itemDoc.id)
-                            }
-                            orderList.add(OrderWithItems(order, items))
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
+                val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id) ?: continue
+                val orderTime = when (val createdAtRaw = doc.get("created_at")) {
+                    is com.google.firebase.Timestamp -> createdAtRaw.toDate().time
+                    is java.util.Date -> createdAtRaw.time
+                    is Number -> createdAtRaw.toLong()
+                    else -> 0L
+                }
+                if (orderTime in startTimestamp..endTimestamp) {
+                    val itemsSnapshot = db.collection("orders").document(order.order_id).collection("items").get().await()
+                    val items = itemsSnapshot.documents.mapNotNull { it.toObject(OrderItem::class.java)?.copy(item_id = it.id) }
+                    orderList.add(OrderWithItems(order, items))
                 }
             }
             orderList.sortedByDescending { it.order.created_at.toString() }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-
-    override fun getAllOrdersForReports(): Flow<List<OrderWithItems>> = callbackFlow {
-        val subscription = db.collection("orders")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-                if (snapshot != null) {
-                    val orderList = mutableListOf<OrderWithItems>()
-                    if (snapshot.isEmpty) {
-                        trySend(emptyList()).isSuccess
-                        return@addSnapshotListener
-                    }
-                    CoroutineScope(Dispatchers.IO).launch {
-                        snapshot.documents.forEach { doc ->
-                            val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
-                            if (order != null) {
-                                try {
-                                    val itemsSnapshot = db.collection("orders").document(order.order_id).collection("items").get().await()
-                                    val items = itemsSnapshot.documents.mapNotNull { itemDoc ->
-                                        itemDoc.toObject(OrderItem::class.java)?.copy(item_id = itemDoc.id)
-                                    }
-                                    orderList.add(OrderWithItems(order, items))
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
-                        }
-                        trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
-                    }
-                }
-            }
-        awaitClose { subscription.remove() }
+        } catch (e: Exception) { emptyList() }
     }
 
     override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
         return try {
-            // 1. تحديث حالة الطلب ورسوم التوصيل
             db.collection("orders").document(orderId).update(
-                mapOf(
-                    "order_status" to newStatus,
-                    "delivery_fees" to deliveryFees
-                )
+                mapOf("order_status" to newStatus, "delivery_fees" to deliveryFees)
             ).await()
-
-            // 2. إذا كانت الحالة "بانتظار الموافقة"، نقوم بإنشاء إشعار للعميل في جدول user_alarm
-            if (newStatus == "waiting for approvel") {
-                val orderSnapshot = db.collection("orders").document(orderId).get().await()
-                val userId = orderSnapshot.getString("user_id") ?: ""
-                val orderNumber = orderSnapshot.getLong("order_number") ?: 0L
-
-                if (userId.isNotEmpty()) {
-                    val userAlarmRef = db.collection("user_alarm").document()
-                    val alarmData = hashMapOf(
-                        "alarm_id" to userAlarmRef.id,
-                        "date" to com.google.firebase.Timestamp.now(),
-                        "order_number" to orderNumber,
-                        "title" to "فاتورة جاهزة",
-                        "message" to "تم تسعير طلبك رقم $orderNumber، يرجى مراجعته والموافقة عليه.",
-                        "receiver_id" to userId,
-                        "fcm_token" to "",
-                        "isRead" to false
-                    )
-                    userAlarmRef.set(alarmData).await()
-                }
-            }
-
             Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 
     override suspend fun updateOrderItemAdminFields(
@@ -267,25 +163,39 @@ class OrdersRepositoryImpl @Inject constructor(
                 )
             ).await()
             Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override fun getAllOrdersForReports(): Flow<List<OrderWithItems>> = callbackFlow {
+        val subscription = db.collection("orders").addSnapshotListener { snapshot, error ->
+            if (error != null) { close(error); return@addSnapshotListener }
+            if (snapshot != null) {
+                val orderList = mutableListOf<OrderWithItems>()
+                CoroutineScope(Dispatchers.IO).launch {
+                    snapshot.documents.forEach { doc ->
+                        val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
+                        if (order != null) {
+                            try {
+                                val itemsSnapshot = db.collection("orders").document(order.order_id).collection("items").get().await()
+                                val items = itemsSnapshot.documents.mapNotNull { it.toObject(OrderItem::class.java)?.copy(item_id = it.id) }
+                                orderList.add(OrderWithItems(order, items))
+                            } catch (e: Exception) { e.printStackTrace() }
+                        }
+                    }
+                    trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
+                }
+            }
         }
+        awaitClose { subscription.remove() }
     }
 
     override suspend fun deleteAdminAlarmByOrderNumber(orderNumber: Long): Result<Unit> {
         return try {
-            val snapshot = db.collection("admin_alarm")
-                .whereEqualTo("order_number", orderNumber)
-                .get()
-                .await()
-
+            val snapshot = db.collection("admin_alarm").whereEqualTo("order_number", orderNumber).get().await()
             for (doc in snapshot.documents) {
                 db.collection("admin_alarm").document(doc.id).delete().await()
             }
             Result.success(Unit)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
+        } catch (e: Exception) { Result.failure(e) }
     }
 }
