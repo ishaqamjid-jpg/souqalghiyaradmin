@@ -6,12 +6,14 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.messaging.FirebaseMessaging
 import com.isaac.souqalghiyaradminnew.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 // حالة واجهة المستخدم
@@ -89,6 +91,16 @@ class LoginViewModel @Inject constructor(
             val user = adminRepository.loginAdmin(phone, pass)
 
             if (user != null && user.status == "active") {
+                
+                // 3. جلب الـ Token الجديد وحفظه في Firebase محلياً قبل الدخول (مهم جداً للإشعارات)
+                try {
+                    val token = FirebaseMessaging.getInstance().token.await()
+                    adminRepository.updateFcmToken(user.user_id, token) // تحديثه في Firestore
+                    saveTokenLocally(token) // حفظه محلياً في الـ SharedPreferences
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSuccess = true,
@@ -116,6 +128,14 @@ class LoginViewModel @Inject constructor(
             putString("admin_id", userId)
             putString("admin_name", name)
             putString("admin_permissions", permissions)
+            apply()
+        }
+    }
+
+    private fun saveTokenLocally(token: String) {
+        val sharedPref = getApplication<Application>().getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
+        sharedPref.edit().apply {
+            putString("fcm_token", token)
             apply()
         }
     }
