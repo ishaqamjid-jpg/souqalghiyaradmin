@@ -66,21 +66,17 @@ class MainActivity : ComponentActivity() {
         val savedAdminId = sharedPref.getString("admin_id", "") ?: ""
         val savedAdminPermissions = sharedPref.getString("admin_permissions", "employee") ?: "employee"
 
-        // التحديث الذكي: استخراج الـ Token وحفظه في Firebase فوراً إذا كان المدير مسجلاً دخوله
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val token = task.result
-                sharedPref.edit().putString("fcm_token", token).apply()
-                if (isLoggedIn && savedAdminId.isNotEmpty()) {
-                    FirebaseFirestore.getInstance().collection("users_emp").document(savedAdminId)
+        // الاشتراك في الإشعارات العامة للآدمن والتحديث الروتيني للتوكن إذا كان المستخدم مسجلاً
+        if (isLoggedIn) {
+            FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful && savedAdminId.isNotEmpty()) {
+                    val token = task.result
+                    sharedPref.edit().putString("fcm_token", token).apply()
+                    FirebaseFirestore.getInstance().collection("UserEmp").document(savedAdminId)
                         .update("fcm_token", token)
                 }
             }
-        }
-
-        // الاشتراك في الإشعارات العامة للآدمن (كخيار إضافي)
-        if (isLoggedIn) {
-            FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
         }
 
         setContent {
@@ -106,13 +102,7 @@ class MainActivity : ComponentActivity() {
                                     currentSessionName = name
                                     currentSessionPermissions = permissions
 
-                                    // الاشتراك بالـ Topic وتحديث الـ Token بعد الدخول مباشرة
                                     FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
-                                    val token = sharedPref.getString("fcm_token", "") ?: ""
-                                    if (token.isNotEmpty()) {
-                                        FirebaseFirestore.getInstance().collection("users_emp").document(id)
-                                            .update("fcm_token", token)
-                                    }
 
                                     navController.navigate("dashboard") {
                                         popUpTo("login") { inclusive = true }
@@ -135,7 +125,7 @@ class MainActivity : ComponentActivity() {
                                 onLogoutClick = {
                                     // مسح التوكن من الداتا بيز كإجراء أمني عند تسجيل الخروج
                                     if (currentSessionId.isNotEmpty()) {
-                                        FirebaseFirestore.getInstance().collection("users_emp").document(currentSessionId)
+                                        FirebaseFirestore.getInstance().collection("UserEmp").document(currentSessionId)
                                             .update("fcm_token", "")
                                     }
 
