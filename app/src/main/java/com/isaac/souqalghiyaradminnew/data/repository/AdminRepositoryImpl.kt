@@ -13,19 +13,17 @@ class AdminRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore
 ) : AdminRepository {
 
-    // دالة تسجيل الدخول: تبحث برقم الهاتف وكلمة المرور وتتأكد أن الحساب active
     override suspend fun loginAdmin(phoneNumber: String, password: String): UserEmp? {
         return try {
             val snapshot = db.collection("UserEmp")
                 .whereEqualTo("phone_number", phoneNumber)
-                .whereEqualTo("password", password) // التحقق من كلمة المرور
-                .whereEqualTo("status", "active") // شرط أمني: يجب أن يكون الحساب نشطاً للدخول
+                .whereEqualTo("password", password) 
+                .whereEqualTo("status", "active")
                 .get()
                 .await()
 
             if (!snapshot.isEmpty) {
                 val doc = snapshot.documents.first()
-                // نأخذ الـ Document ID العشوائي ونضعه في حقل user_id
                 doc.toObject(UserEmp::class.java)?.copy(user_id = doc.id)
             } else {
                 null
@@ -36,7 +34,6 @@ class AdminRepositoryImpl @Inject constructor(
         }
     }
 
-    // دالة المراقبة اللحظية لحالة وصلاحيات الموظف أثناء فتح التطبيق
     override fun observeAdminProfile(userId: String): Flow<UserEmp?> = callbackFlow {
         val subscription = db.collection("UserEmp").document(userId)
             .addSnapshotListener { snapshot, error ->
@@ -48,9 +45,19 @@ class AdminRepositoryImpl @Inject constructor(
                     val user = snapshot.toObject(UserEmp::class.java)?.copy(user_id = snapshot.id)
                     trySend(user).isSuccess
                 } else {
-                    trySend(null).isSuccess // إذا حُذِف المستند
+                    trySend(null).isSuccess 
                 }
             }
         awaitClose { subscription.remove() }
+    }
+
+    // التنفيذ الفعلي لتحديث التوكن
+    override suspend fun updateFcmToken(userId: String, token: String): Result<Unit> {
+        return try {
+            db.collection("UserEmp").document(userId).update("fcm_token", token).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
