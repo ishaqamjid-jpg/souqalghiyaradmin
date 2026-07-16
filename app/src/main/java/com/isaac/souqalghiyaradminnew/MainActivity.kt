@@ -66,11 +66,10 @@ class MainActivity : ComponentActivity() {
         val savedAdminId = sharedPref.getString("admin_id", "") ?: ""
         val savedAdminPermissions = sharedPref.getString("admin_permissions", "employee") ?: "employee"
 
-        // الاشتراك في الإشعارات العامة للآدمن والتحديث الروتيني للتوكن إذا كان المستخدم مسجلاً
-        if (isLoggedIn) {
-            FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
+        // تحديث التوكن في Firestore إذا كان مسجلاً للدخول
+        if (isLoggedIn && savedAdminId.isNotEmpty()) {
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                if (task.isSuccessful && savedAdminId.isNotEmpty()) {
+                if (task.isSuccessful) {
                     val token = task.result
                     sharedPref.edit().putString("fcm_token", token).apply()
                     FirebaseFirestore.getInstance().collection("UserEmp").document(savedAdminId)
@@ -102,8 +101,6 @@ class MainActivity : ComponentActivity() {
                                     currentSessionName = name
                                     currentSessionPermissions = permissions
 
-                                    FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
-
                                     navController.navigate("dashboard") {
                                         popUpTo("login") { inclusive = true }
                                     }
@@ -123,14 +120,10 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToReports = { navController.navigate("reports") },
                                 onNavigateToSettings = { navController.navigate("settings") },
                                 onLogoutClick = {
-                                    // مسح التوكن من الداتا بيز كإجراء أمني عند تسجيل الخروج
                                     if (currentSessionId.isNotEmpty()) {
                                         FirebaseFirestore.getInstance().collection("UserEmp").document(currentSessionId)
                                             .update("fcm_token", "")
                                     }
-
-                                    FirebaseMessaging.getInstance().unsubscribeFromTopic("admin_notifications")
-
                                     sharedPref.edit().clear().apply()
                                     currentSessionId = ""
                                     currentSessionName = ""

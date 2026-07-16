@@ -140,7 +140,7 @@ class OrdersRepositoryImpl @Inject constructor(
             db.collection("orders").document(orderId).update(
                 mapOf("order_status" to newStatus, "delivery_fees" to deliveryFees)
             ).await()
-            
+
             // هنا فقط ننشئ التنبيه في Firestore، والسيرفر سيتكفل بالباقي
             if (newStatus == "waiting for approvel") {
                 val orderSnapshot = db.collection("orders").document(orderId).get().await()
@@ -159,7 +159,7 @@ class OrdersRepositoryImpl @Inject constructor(
                 )
                 userAlarmRef.set(alarmData).await()
             }
-            
+
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
