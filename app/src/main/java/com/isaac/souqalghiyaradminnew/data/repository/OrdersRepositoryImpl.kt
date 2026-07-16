@@ -1,11 +1,9 @@
 package com.isaac.souqalghiyaradminnew.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import com.isaac.souqalghiyaradminnew.domain.model.Order
 import com.isaac.souqalghiyaradminnew.domain.model.OrderItem
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
-import com.isaac.souqalghiyaradminnew.domain.model.admin_alarm
 import com.isaac.souqalghiyaradminnew.domain.repository.OrdersRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -138,9 +136,52 @@ class OrdersRepositoryImpl @Inject constructor(
 
     override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
         return try {
+            // 1. تحديث حالة الطلب
             db.collection("orders").document(orderId).update(
                 mapOf("order_status" to newStatus, "delivery_fees" to deliveryFees)
             ).await()
+
+            // 2. إنشاء التنبيه للعميل وحفظه في جدول user_alarm
+            if (newStatus == "waiting for approvel" || newStatus == "completed" || newStatus == "canceled") {
+                val orderSnapshot = db.collection("orders").document(orderId).get().await()
+                val userId = orderSnapshot.getString("user_id") ?: ""
+                val orderNumber = orderSnapshot.getLong("order_number") ?: 0L
+
+                if (userId.isNotEmpty()) {
+                    // جلب fcm_token الخاص بالعميل من جدول users
+                    val userSnapshot = db.collection("users").document(userId).get().await()
+                    val fcmToken = userSnapshot.getString("fcm_token") ?: ""
+
+                    // تحديد رسالة وعنوان التنبيه بناءً على الحالة الجديدة
+                    val title = when (newStatus) {
+                        "waiting for approvel" -> "فاتورة جاهزة"
+                        "completed" -> "اكتمل الطلب"
+                        "canceled" -> "تم إلغاء الطلب"
+                        else -> "تحديث للطلب"
+                    }
+                    val message = when (newStatus) {
+                        "waiting for approvel" -> "تم تسعير طلبك رقم $orderNumber، يرجى مراجعته والموافقة عليه."
+                        "completed" -> "تم الانتهاء من طلبك رقم $orderNumber بنجاح."
+                        "canceled" -> "تم إلغاء طلبك رقم $orderNumber من قبل الإدارة."
+                        else -> "يوجد تحديث جديد على طلبك رقم $orderNumber."
+                    }
+
+                    // حفظ التنبيه بالهيكلة المحددة
+                    val userAlarmRef = db.collection("user_alarm").document()
+                    val alarmData = hashMapOf(
+                        "alarm_id" to userAlarmRef.id,
+                        "title" to title,
+                        "receiver_id" to userId,
+                        "order_number" to orderNumber,
+                        "message" to message,
+                        "isRead" to false,
+                        "fcm_token" to fcmToken,
+                        "date" to com.google.firebase.Timestamp.now()
+                    )
+                    userAlarmRef.set(alarmData).await()
+                }
+            }
+
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
