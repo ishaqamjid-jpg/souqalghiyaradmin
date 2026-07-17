@@ -160,12 +160,12 @@ fun HistoricalOrdersSection(
             ) {
                 items(unreadOrders, key = { it.order.order_id }) { orderWithItems ->
                     OrderExpandableCard(
-                        data = orderWithItems, 
-                        viewModel = viewModel, 
+                        data = orderWithItems,
+                        viewModel = viewModel,
                         isEditable = false,
                         onExpand = {
-                            // بمجرد الفتح سيتم مسح الإشعار وتختفي البطاقة من الأعلى تلقائياً
-                            viewModel.markOrderAsReadAndRemoveAlarm(orderWithItems.order.order_number)
+                            // التعديل هنا: إضافة toLong() لحل خطأ الـ mismatch
+                            viewModel.markOrderAsReadAndRemoveAlarm(orderWithItems.order.order_number.toLong())
                         }
                     )
                 }
@@ -250,14 +250,14 @@ fun OrdersList(orders: List<OrderWithItems>, viewModel: OrdersViewModel, isEdita
 
 @Composable
 fun OrderExpandableCard(
-    data: OrderWithItems, 
-    viewModel: OrdersViewModel, 
+    data: OrderWithItems,
+    viewModel: OrdersViewModel,
     isEditable: Boolean,
     onExpand: () -> Unit = {} // لتنفيذ أوامر عند فتح البطاقة
 ) {
     val order = data.order
     val items = data.items
-    val context = LocalContext.current 
+    val context = LocalContext.current
 
     var expanded by remember { mutableStateOf(false) }
     var deliveryFees by remember { mutableStateOf(order.delivery_fees.toString()) }
@@ -273,8 +273,8 @@ fun OrderExpandableCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { 
-                expanded = !expanded 
+            .clickable {
+                expanded = !expanded
                 if (expanded) onExpand() // إطلاق الدالة عند الفتح
             },
         colors = CardDefaults.cardColors(containerColor = Color.White),
