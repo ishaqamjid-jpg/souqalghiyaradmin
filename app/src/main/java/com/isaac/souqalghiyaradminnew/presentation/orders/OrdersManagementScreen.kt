@@ -79,7 +79,6 @@ fun OrdersManagementScreen(
                 when (selectedTab) {
                     0 -> PendingOrdersSection(viewModel)
                     1 -> WaitingOrdersSection(viewModel)
-                    // التمرير الجديد لقوائم الغير مقروءة
                     2 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders, viewModel.unreadCanceledOrders)
                     3 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders, viewModel.unreadCompletedOrders)
                 }
@@ -91,13 +90,13 @@ fun OrdersManagementScreen(
 @Composable
 fun PendingOrdersSection(viewModel: OrdersViewModel) {
     val orders by viewModel.pendingOrders.collectAsState()
-    OrdersList(orders = orders, viewModel = viewModel, isEditable = true)
+    OrdersList(orders = orders, viewModel = viewModel, isEditable = true, showPdfExport = true)
 }
 
 @Composable
 fun WaitingOrdersSection(viewModel: OrdersViewModel) {
     val orders by viewModel.waitingOrders.collectAsState()
-    OrdersList(orders = orders, viewModel = viewModel, isEditable = false)
+    OrdersList(orders = orders, viewModel = viewModel, isEditable = false, showPdfExport = true)
 }
 
 @Composable
@@ -110,7 +109,6 @@ fun HistoricalOrdersSection(
     val context = LocalContext.current
     var fromDate by remember { mutableStateOf<Long?>(null) }
     var toDate by remember { mutableStateOf<Long?>(null) }
-
     var fromDateText by remember { mutableStateOf("من تاريخ") }
     var toDateText by remember { mutableStateOf("إلى تاريخ") }
 
@@ -120,60 +118,42 @@ fun HistoricalOrdersSection(
 
     fun openDatePicker(onDateSelected: (Long, String) -> Unit) {
         val calendar = Calendar.getInstance()
-        DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                val selectedCalendar = Calendar.getInstance().apply {
-                    set(Calendar.YEAR, year)
-                    set(Calendar.MONTH, month)
-                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }
-                onDateSelected(selectedCalendar.timeInMillis, "$dayOfMonth/${month + 1}/$year")
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+        DatePickerDialog(context, { _, year, month, dayOfMonth ->
+            val selectedCalendar = Calendar.getInstance().apply {
+                set(Calendar.YEAR, year)
+                set(Calendar.MONTH, month)
+                set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            onDateSelected(selectedCalendar.timeInMillis, "$dayOfMonth/${month + 1}/$year")
+        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-
-        // --- قسم الطلبات الجديدة غير المقروءة ---
         if (unreadOrders.isNotEmpty()) {
             Text(
-                text = "طلبات جديدة لم تتم قرائتها",
-                color = Color(0xFFD32F2F),
+                text = "طلبات جديدة لم تتم قرائتها", color = Color(0xFFD32F2F),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 16.sp
+                fontWeight = FontWeight.ExtraBold, fontSize = 16.sp
             )
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false) // يضمن عدم أخذ المساحة بالكامل إذا كان العدد قليل
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(unreadOrders, key = { it.order.order_id }) { orderWithItems ->
                     OrderExpandableCard(
-                        data = orderWithItems,
-                        viewModel = viewModel,
-                        isEditable = false,
-                        onExpand = {
-                            // التعديل هنا: إضافة toLong() لحل خطأ الـ mismatch
-                            viewModel.markOrderAsReadAndRemoveAlarm(orderWithItems.order.order_number.toLong())
-                        }
+                        data = orderWithItems, viewModel = viewModel, 
+                        isEditable = false, showPdfExport = false, // تم إخفاء الـ PDF
+                        onExpand = { viewModel.markOrderAsReadAndRemoveAlarm(orderWithItems.order.order_number.toLong()) }
                     )
                 }
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 2.dp, color = Color.LightGray)
         }
 
-        // --- قسم البحث التاريخي التقليدي ---
         Card(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -181,19 +161,12 @@ fun HistoricalOrdersSection(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { openDatePicker { time, text -> fromDate = time; fromDateText = text } },
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    OutlinedButton(onClick = { openDatePicker { time, text -> fromDate = time; fromDateText = text } }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(fromDateText, fontSize = 12.sp)
                     }
-
-                    OutlinedButton(
-                        onClick = { openDatePicker { time, text -> toDate = time; toDateText = text } },
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    OutlinedButton(onClick = { openDatePicker { time, text -> toDate = time; toDateText = text } }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(toDateText, fontSize = 12.sp)
@@ -219,29 +192,24 @@ fun HistoricalOrdersSection(
 
         if (historicalOrders.isEmpty() && !isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = if(fromDate == null) "الرجاء تحديد التاريخ والضغط على بحث" else "لا توجد طلبات في هذه الفترة",
-                    color = Color.Gray
-                )
+                Text(text = if(fromDate == null) "الرجاء تحديد التاريخ والضغط على بحث" else "لا توجد طلبات في هذه الفترة", color = Color.Gray)
             }
         } else {
-            OrdersList(orders = historicalOrders, viewModel = viewModel, isEditable = false)
+            OrdersList(orders = historicalOrders, viewModel = viewModel, isEditable = false, showPdfExport = false) // تم إخفاء الـ PDF
         }
     }
 }
 
 @Composable
-fun OrdersList(orders: List<OrderWithItems>, viewModel: OrdersViewModel, isEditable: Boolean) {
+fun OrdersList(orders: List<OrderWithItems>, viewModel: OrdersViewModel, isEditable: Boolean, showPdfExport: Boolean) {
     if (orders.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("لا توجد طلبات هنا حالياً", fontSize = 18.sp, color = Color.Gray)
         }
     } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
             items(orders, key = { it.order.order_id }) { orderWithItems ->
-                OrderExpandableCard(data = orderWithItems, viewModel = viewModel, isEditable = isEditable)
+                OrderExpandableCard(data = orderWithItems, viewModel = viewModel, isEditable = isEditable, showPdfExport = showPdfExport)
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
@@ -250,14 +218,15 @@ fun OrdersList(orders: List<OrderWithItems>, viewModel: OrdersViewModel, isEdita
 
 @Composable
 fun OrderExpandableCard(
-    data: OrderWithItems,
-    viewModel: OrdersViewModel,
+    data: OrderWithItems, 
+    viewModel: OrdersViewModel, 
     isEditable: Boolean,
-    onExpand: () -> Unit = {} // لتنفيذ أوامر عند فتح البطاقة
+    showPdfExport: Boolean, // إضافة معامل للتحكم في ظهور زر الـ PDF
+    onExpand: () -> Unit = {}
 ) {
     val order = data.order
     val items = data.items
-    val context = LocalContext.current
+    val context = LocalContext.current 
 
     var expanded by remember { mutableStateOf(false) }
     var deliveryFees by remember { mutableStateOf(order.delivery_fees.toString()) }
@@ -271,12 +240,10 @@ fun OrderExpandableCard(
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                expanded = !expanded
-                if (expanded) onExpand() // إطلاق الدالة عند الفتح
-            },
+        modifier = Modifier.fillMaxWidth().clickable { 
+            expanded = !expanded 
+            if (expanded) onExpand() 
+        },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp),
         shape = RoundedCornerShape(12.dp)
@@ -290,76 +257,35 @@ fun OrderExpandableCard(
                     Text(
                         text = "الحالة: ${order.order_status}",
                         color = if (order.order_status == "canceled") Color.Red else Color(0xFF4CAF50),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 4.dp)
+                        fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp)
                     )
                 }
-                Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = Color(0xFF0D1B6D)
-                )
+                Icon(imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null, tint = Color(0xFF0D1B6D))
             }
 
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 16.dp)) {
                     HorizontalDivider(color = Color.LightGray)
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Text("القطع المطلوبة وتسعيرها:", fontWeight = FontWeight.Bold, color = Color(0xFF42A5F5))
                     Spacer(modifier = Modifier.height(8.dp))
 
                     items.forEach { item ->
                         val currentPricing = itemsPricingStates[item.item_id]!!
-
-                        Column(modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                            .background(Color(0xFFF9F9F9), RoundedCornerShape(8.dp))
-                            .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
-                            .padding(12.dp)
-                        ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).background(Color(0xFFF9F9F9), RoundedCornerShape(8.dp)).border(1.dp, Color.LightGray, RoundedCornerShape(8.dp)).padding(12.dp)) {
                             Text("• ${item.part_name} (${item.quality_type}) | الكمية: ${item.quantity}", fontWeight = FontWeight.SemiBold)
                             if(item.description.isNotEmpty()) Text("الوصف: ${item.description}", fontSize = 12.sp, color = Color.Gray)
-
                             Spacer(modifier = Modifier.height(8.dp))
 
                             if (isEditable) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(
-                                        value = if(currentPricing.purchasePrice == 0.0) "" else currentPricing.purchasePrice.toString(),
-                                        onValueChange = { itemsPricingStates[item.item_id] = currentPricing.copy(purchasePrice = it.toDoubleOrNull() ?: 0.0) },
-                                        label = { Text("سعر الشراء", fontSize = 12.sp) },
-                                        modifier = Modifier.weight(1f),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        singleLine = true
-                                    )
-                                    OutlinedTextField(
-                                        value = if(currentPricing.sellingPrice == 0.0) "" else currentPricing.sellingPrice.toString(),
-                                        onValueChange = { itemsPricingStates[item.item_id] = currentPricing.copy(sellingPrice = it.toDoubleOrNull() ?: 0.0) },
-                                        label = { Text("سعر البيع", fontSize = 12.sp) },
-                                        modifier = Modifier.weight(1f),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        singleLine = true
-                                    )
+                                    OutlinedTextField(value = if(currentPricing.purchasePrice == 0.0) "" else currentPricing.purchasePrice.toString(), onValueChange = { itemsPricingStates[item.item_id] = currentPricing.copy(purchasePrice = it.toDoubleOrNull() ?: 0.0) }, label = { Text("سعر الشراء", fontSize = 12.sp) }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                                    OutlinedTextField(value = if(currentPricing.sellingPrice == 0.0) "" else currentPricing.sellingPrice.toString(), onValueChange = { itemsPricingStates[item.item_id] = currentPricing.copy(sellingPrice = it.toDoubleOrNull() ?: 0.0) }, label = { Text("سعر البيع", fontSize = 12.sp) }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(
-                                        value = currentPricing.providerName,
-                                        onValueChange = { itemsPricingStates[item.item_id] = currentPricing.copy(providerName = it) },
-                                        label = { Text("اسم التاجر", fontSize = 12.sp) },
-                                        modifier = Modifier.weight(1f),
-                                        singleLine = true
-                                    )
-                                    OutlinedTextField(
-                                        value = currentPricing.invoiceNumber,
-                                        onValueChange = { itemsPricingStates[item.item_id] = currentPricing.copy(invoiceNumber = it) },
-                                        label = { Text("رقم الفاتورة", fontSize = 12.sp) },
-                                        modifier = Modifier.weight(1f),
-                                        singleLine = true
-                                    )
+                                    OutlinedTextField(value = currentPricing.providerName, onValueChange = { itemsPricingStates[item.item_id] = currentPricing.copy(providerName = it) }, label = { Text("اسم التاجر", fontSize = 12.sp) }, modifier = Modifier.weight(1f), singleLine = true)
+                                    OutlinedTextField(value = currentPricing.invoiceNumber, onValueChange = { itemsPricingStates[item.item_id] = currentPricing.copy(invoiceNumber = it) }, label = { Text("رقم الفاتورة", fontSize = 12.sp) }, modifier = Modifier.weight(1f), singleLine = true)
                                 }
                             } else {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -385,26 +311,41 @@ fun OrderExpandableCard(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = { viewModel.rejectOrder(order.order_id) }) {
-                                Text("رفض وإلغاء", color = Color.Red, fontWeight = FontWeight.Bold)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            // زر الـ PDF يظهر في وضع التعديل (الطلبات المعلقة)
+                            if (showPdfExport) {
+                                OutlinedButton(
+                                    onClick = { OrderPdfManager.generateOrderPdf(context, data) },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D)),
+                                    modifier = Modifier.height(45.dp)
+                                ) {
+                                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("تصدير PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = {
-                                    viewModel.approveOrder(
-                                        orderId = order.order_id,
-                                        deliveryFees = deliveryFees.toDoubleOrNull() ?: 0.0,
-                                        itemsPricing = itemsPricingStates.values.toList()
-                                    )
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                            ) {
-                                Text("اعتماد التسعير", fontWeight = FontWeight.Bold)
+                            
+                            Row {
+                                TextButton(onClick = { viewModel.rejectOrder(order.order_id) }) {
+                                    Text("إلغاء", color = Color.Red, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Button(
+                                    onClick = {
+                                        viewModel.approveOrder(
+                                            orderId = order.order_id,
+                                            deliveryFees = deliveryFees.toDoubleOrNull() ?: 0.0,
+                                            itemsPricing = itemsPricingStates.values.toList()
+                                        )
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                    modifier = Modifier.height(45.dp)
+                                ) {
+                                    Text("اعتماد التسعير", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     } else {
-                        // إضافة زر تصدير PDF
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -412,13 +353,16 @@ fun OrderExpandableCard(
                         ) {
                             Text("رسوم التوصيل: ${order.delivery_fees}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
 
-                            OutlinedButton(
-                                onClick = { /* وضع دالة توليد الـ PDF الخاصة بك هنا */ },
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D))
-                            ) {
-                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("تصدير PDF", fontWeight = FontWeight.Bold)
+                            // في غير وضع التعديل (مثل قيد الموافقة) يظهر إذا كان مسموحاً
+                            if (showPdfExport) {
+                                OutlinedButton(
+                                    onClick = { OrderPdfManager.generateOrderPdf(context, data) },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D))
+                                ) {
+                                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("تصدير PDF", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
