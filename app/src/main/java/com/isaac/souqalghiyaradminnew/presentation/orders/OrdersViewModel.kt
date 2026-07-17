@@ -26,26 +26,28 @@ class OrdersViewModel @Inject constructor(
     private val repository: OrdersRepository
 ) : ViewModel() {
 
-    // 1. الطلبات المعلقة
     val pendingOrders: StateFlow<List<OrderWithItems>> = repository.getPendingOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // 2. الطلبات قيد الموافقة
     val waitingOrders: StateFlow<List<OrderWithItems>> = repository.getWaitingOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // 3. الطلبات المرفوضة (مستقلة)
+    // الطلبات الجديدة غير المقروءة (تُجلب ديناميكياً بناءً على وجود إشعار)
+    val unreadCanceledOrders: StateFlow<List<OrderWithItems>> = repository.getUnreadOrders("canceled")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val unreadCompletedOrders: StateFlow<List<OrderWithItems>> = repository.getUnreadOrders("completed")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _canceledOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val canceledOrders: StateFlow<List<OrderWithItems>> = _canceledOrders.asStateFlow()
 
-    // 4. الطلبات المكتملة (مستقلة)
     private val _completedOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val completedOrders: StateFlow<List<OrderWithItems>> = _completedOrders.asStateFlow()
 
     private val _isLoadingHistorical = MutableStateFlow(false)
     val isLoadingHistorical: StateFlow<Boolean> = _isLoadingHistorical.asStateFlow()
 
-    // دالة الموافقة وتعبئة الأسعار
     fun approveOrder(
         orderId: String,
         deliveryFees: Double,
@@ -66,26 +68,29 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    // دالة رفض الطلب
     fun rejectOrder(orderId: String) {
         viewModelScope.launch {
             repository.updateOrderStatus(orderId, "canceled", 0.0)
         }
     }
 
-    // دالة جلب الطلبات حسب التاريخ والحالة وتوجيهها للمتغير الصحيح
+    // دالة لحذف الإشعار وإخفاء الطلب من قائمة "غير المقروءة"
+    fun markOrderAsReadAndRemoveAlarm(orderNumber: Long) {
+        viewModelScope.launch {
+            repository.deleteAdminAlarmByOrderNumber(orderNumber)
+        }
+    }
+
     fun fetchOrdersByDate(status: String, startTimestamp: Long, endTimestamp: Long) {
         viewModelScope.launch {
             _isLoadingHistorical.value = true
             val result = repository.getOrdersByDateRange(status, startTimestamp, endTimestamp)
 
-            // توجيه النتائج للقسم الصحيح حتى لا تتداخل
             if (status == "canceled") {
                 _canceledOrders.value = result
             } else if (status == "completed") {
                 _completedOrders.value = result
             }
-
             _isLoadingHistorical.value = false
         }
     }
