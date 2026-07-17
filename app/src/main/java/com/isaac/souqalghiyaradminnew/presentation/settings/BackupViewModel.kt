@@ -33,9 +33,10 @@ class BackupViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
-    // قائمة بأسماء الجداول (Collections) في الفايربيز التي سيتم أخذ نسخة منها
+    // قائمة بأسماء الجداول (Collections) الرئيسية
+    // تم إزالة order_items لأنها مجموعة فرعية (Subcollection) وسنتعامل معها برمجياً
     private val collectionsToBackup = listOf(
-        "users", "UserEmp", "orders", "order_items",
+        "users", "UserEmp", "orders",
         "advertisements", "brands", "location",
         "quality_types", "spare_parts_categories"
     )
@@ -47,6 +48,7 @@ class BackupViewModel @Inject constructor(
                 val backupDataJson = JSONObject()
                 val csvBuilder = StringBuilder()
 
+                // 1. جلب الجداول الرئيسية
                 for (collectionName in collectionsToBackup) {
                     val snapshot = db.collection(collectionName).get().await()
                     val docsArray = JSONArray()
@@ -76,6 +78,48 @@ class BackupViewModel @Inject constructor(
                     backupDataJson.put(collectionName, docsArray)
                 }
 
+                // 2. 🌟 جلب جدول القطع (items) المتفرع من جدول الطلبات (orders) 🌟
+                val ordersSnapshot = db.collection("orders").get().await()
+                if (ordersSnapshot.documents.isNotEmpty()) {
+                    val allItemsArray = JSONArray()
+                    var isItemsHeaderAdded = false
+                    var itemsHeaders = listOf<String>()
+
+                    csvBuilder.append("--- جدول: items (القطع التابعة للطلبات) ---\n")
+
+                    for (orderDoc in ordersSnapshot.documents) {
+                        // الدخول لكل طلب وجلب القطع التابعة له
+                        val itemsSnapshot = db.collection("orders").document(orderDoc.id).collection("items").get().await()
+
+                        for (itemDoc in itemsSnapshot.documents) {
+                            val itemData = itemDoc.data?.toMutableMap() ?: mutableMapOf()
+
+                            // حفظ البيانات في JSON مع معرف الطلب الأب لسهولة الاستعادة
+                            val itemJson = JSONObject(itemData as Map<*, *>)
+                            itemJson.put("_doc_id_", itemDoc.id)
+                            itemJson.put("_parent_order_id_", orderDoc.id)
+                            allItemsArray.put(itemJson)
+
+                            // للإكسل: نضيف عموداً يوضح رقم الطلب الأب لكي يتمكن المدير من فرزها
+                            itemData["parent_order_id"] = orderDoc.id
+
+                            if (!isItemsHeaderAdded) {
+                                itemsHeaders = itemData.keys.toList()
+                                csvBuilder.append(itemsHeaders.joinToString(",")).append("\n")
+                                isItemsHeaderAdded = true
+                            }
+
+                            val row = itemsHeaders.map { key ->
+                                val value = itemData[key]?.toString() ?: ""
+                                "\"${value.replace("\"", "\"\"").replace("\n", " ")}\""
+                            }
+                            csvBuilder.append(row.joinToString(",")).append("\n")
+                        }
+                    }
+                    csvBuilder.append("\n\n")
+                    backupDataJson.put("items", allItemsArray)
+                }
+
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
 
                 // حفظ الملفات في مجلد التنزيلات داخل مجلد خاص Souqfiles
@@ -94,7 +138,6 @@ class BackupViewModel @Inject constructor(
                         it.write(bom)
                         it.write(csvBuilder.toString())
                     }
-                    // تم تصحيح الخطأ المطبعي هنا
                     Toast.makeText(context, "تم حفظ نسخة Excel قابلة للتعديل في التنزيلات/Souqfiles", Toast.LENGTH_LONG).show()
                 }
 
@@ -114,7 +157,7 @@ class BackupViewModel @Inject constructor(
                 _isLoading.value = true
                 val jsonString = withContext(Dispatchers.IO) {
                     val inputStream = context.contentResolver.openInputStream(uri)
-                    val reader = BufferedReader(InputStreamReader(inputStream))
+                    val reader = BufferedReader(InputStreamReader(inputStream!!))
                     reader.readText()
                 }
 
@@ -128,14 +171,28 @@ class BackupViewModel @Inject constructor(
                             val docId = jsonDoc.optString("_doc_id_")
                             jsonDoc.remove("_doc_id_") // نزيل الـ ID من المحتوى
 
-                            val dataMap = jsonToMap(jsonDoc)
+                            // 🌟 استعادة القطع في مسارها الصحيح (كمجموعة فرعية داخل الطلب) 🌟
+                            if (collectionName == "items") {
+                                val parentOrderId = jsonDoc.optString("_parent_order_id_")
+                                jsonDoc.remove("_parent_order_id_")
+                                val dataMap = jsonToMap(jsonDoc)
 
-                            val docRef = if (docId.isNotEmpty()) {
-                                db.collection(collectionName).document(docId)
+                                val docRef = if (docId.isNotEmpty() && parentOrderId.isNotEmpty()) {
+                                    db.collection("orders").document(parentOrderId).collection("items").document(docId)
+                                } else {
+                                    continue // تجاوز في حالة نقص المعرفات
+                                }
+                                batch.set(docRef, dataMap)
                             } else {
-                                db.collection(collectionName).document()
+                                // استعادة الجداول الرئيسية
+                                val dataMap = jsonToMap(jsonDoc)
+                                val docRef = if (docId.isNotEmpty()) {
+                                    db.collection(collectionName).document(docId)
+                                } else {
+                                    db.collection(collectionName).document()
+                                }
+                                batch.set(docRef, dataMap)
                             }
-                            batch.set(docRef, dataMap)
                         }
                     }
                 }.await()
