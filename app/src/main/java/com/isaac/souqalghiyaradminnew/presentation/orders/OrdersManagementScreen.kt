@@ -79,15 +79,14 @@ fun OrdersManagementScreen(
                 when (selectedTab) {
                     0 -> PendingOrdersSection(viewModel)
                     1 -> WaitingOrdersSection(viewModel)
-                    2 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders)
-                    3 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders)
+                    // التمرير الجديد لقوائم الغير مقروءة
+                    2 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders, viewModel.unreadCanceledOrders)
+                    3 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders, viewModel.unreadCompletedOrders)
                 }
             }
         }
     }
 }
-
-// ---------------- الأقسام ----------------
 
 @Composable
 fun PendingOrdersSection(viewModel: OrdersViewModel) {
@@ -105,7 +104,8 @@ fun WaitingOrdersSection(viewModel: OrdersViewModel) {
 fun HistoricalOrdersSection(
     viewModel: OrdersViewModel,
     status: String,
-    ordersFlow: StateFlow<List<OrderWithItems>>
+    historicalOrdersFlow: StateFlow<List<OrderWithItems>>,
+    unreadOrdersFlow: StateFlow<List<OrderWithItems>>
 ) {
     val context = LocalContext.current
     var fromDate by remember { mutableStateOf<Long?>(null) }
@@ -114,7 +114,8 @@ fun HistoricalOrdersSection(
     var fromDateText by remember { mutableStateOf("من تاريخ") }
     var toDateText by remember { mutableStateOf("إلى تاريخ") }
 
-    val historicalOrders by ordersFlow.collectAsState()
+    val historicalOrders by historicalOrdersFlow.collectAsState()
+    val unreadOrders by unreadOrdersFlow.collectAsState()
     val isLoading by viewModel.isLoadingHistorical.collectAsState()
 
     fun openDatePicker(onDateSelected: (Long, String) -> Unit) {
@@ -140,6 +141,39 @@ fun HistoricalOrdersSection(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+
+        // --- قسم الطلبات الجديدة غير المقروءة ---
+        if (unreadOrders.isNotEmpty()) {
+            Text(
+                text = "طلبات جديدة لم تتم قرائتها",
+                color = Color(0xFFD32F2F),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 16.sp
+            )
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false) // يضمن عدم أخذ المساحة بالكامل إذا كان العدد قليل
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(unreadOrders, key = { it.order.order_id }) { orderWithItems ->
+                    OrderExpandableCard(
+                        data = orderWithItems, 
+                        viewModel = viewModel, 
+                        isEditable = false,
+                        onExpand = {
+                            // بمجرد الفتح سيتم مسح الإشعار وتختفي البطاقة من الأعلى تلقائياً
+                            viewModel.markOrderAsReadAndRemoveAlarm(orderWithItems.order.order_number)
+                        }
+                    )
+                }
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 2.dp, color = Color.LightGray)
+        }
+
+        // --- قسم البحث التاريخي التقليدي ---
         Card(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -178,7 +212,7 @@ fun HistoricalOrdersSection(
                     enabled = fromDate != null && toDate != null && !isLoading
                 ) {
                     if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
-                    else Text("عرض الطلبات", fontWeight = FontWeight.Bold)
+                    else Text("بحث في السجلات", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -186,7 +220,7 @@ fun HistoricalOrdersSection(
         if (historicalOrders.isEmpty() && !isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = if(fromDate == null) "الرجاء تحديد التاريخ والضغط على عرض" else "لا توجد طلبات في هذه الفترة",
+                    text = if(fromDate == null) "الرجاء تحديد التاريخ والضغط على بحث" else "لا توجد طلبات في هذه الفترة",
                     color = Color.Gray
                 )
             }
@@ -195,8 +229,6 @@ fun HistoricalOrdersSection(
         }
     }
 }
-
-// ---------------- القائمة والكارد ----------------
 
 @Composable
 fun OrdersList(orders: List<OrderWithItems>, viewModel: OrdersViewModel, isEditable: Boolean) {
@@ -217,10 +249,15 @@ fun OrdersList(orders: List<OrderWithItems>, viewModel: OrdersViewModel, isEdita
 }
 
 @Composable
-fun OrderExpandableCard(data: OrderWithItems, viewModel: OrdersViewModel, isEditable: Boolean) {
+fun OrderExpandableCard(
+    data: OrderWithItems, 
+    viewModel: OrdersViewModel, 
+    isEditable: Boolean,
+    onExpand: () -> Unit = {} // لتنفيذ أوامر عند فتح البطاقة
+) {
     val order = data.order
     val items = data.items
-    val context = LocalContext.current // نحتاجه لتوليد الـ PDF
+    val context = LocalContext.current 
 
     var expanded by remember { mutableStateOf(false) }
     var deliveryFees by remember { mutableStateOf(order.delivery_fees.toString()) }
@@ -236,7 +273,10 @@ fun OrderExpandableCard(data: OrderWithItems, viewModel: OrdersViewModel, isEdit
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { expanded = !expanded },
+            .clickable { 
+                expanded = !expanded 
+                if (expanded) onExpand() // إطلاق الدالة عند الفتح
+            },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp),
         shape = RoundedCornerShape(12.dp)
@@ -364,7 +404,7 @@ fun OrderExpandableCard(data: OrderWithItems, viewModel: OrdersViewModel, isEdit
                             }
                         }
                     } else {
-                        // تعديل هنا: إضافة زر تصدير PDF بجوار نص رسوم التوصيل
+                        // إضافة زر تصدير PDF
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -373,7 +413,7 @@ fun OrderExpandableCard(data: OrderWithItems, viewModel: OrdersViewModel, isEdit
                             Text("رسوم التوصيل: ${order.delivery_fees}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
 
                             OutlinedButton(
-                                onClick = { OrderPdfManager.generateOrderPdf(context, data) },
+                                onClick = { /* وضع دالة توليد الـ PDF الخاصة بك هنا */ },
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D))
                             ) {
                                 Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
