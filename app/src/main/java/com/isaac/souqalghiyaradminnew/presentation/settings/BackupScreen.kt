@@ -1,6 +1,3 @@
-package com.isaac.souqalghiyaradminnew.presentation.settings
-
-import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
@@ -29,6 +26,15 @@ fun BackupScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val context = LocalContext.current
 
+    // مُشغّل اختيار الملفات لاستعادة البيانات
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { 
+            viewModel.restoreBackupFromJson(context, it)
+        }
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
             topBar = {
@@ -56,32 +62,23 @@ fun BackupScreen(
                     imageVector = Icons.Default.CloudDownload, 
                     contentDescription = "Backup", 
                     tint = Color(0xFFE91E63), 
-                    modifier = Modifier.size(120.dp)
+                    modifier = Modifier.size(100.dp)
                 )
                 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
                 
+                Text("إدارة قاعدة البيانات", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    text = "سحب قاعدة البيانات كاملة من Firebase", 
-                    color = Color.White, 
-                    fontSize = 18.sp, 
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Text(
-                    text = "اختر صيغة التصدير المناسبة لك ليتم حفظها في مجلد المستندات (Documents) في هاتفك.",
-                    color = Color.Gray,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 32.dp),
-                    textAlign = TextAlign.Center
+                    text = "سيتم حفظ الملفات في مجلد التنزيلات (Downloads/Souqfiles)",
+                    color = Color.Gray, fontSize = 13.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
                 )
 
                 if (isLoading) {
                     CircularProgressIndicator(color = Color(0xFFE91E63))
                     Spacer(Modifier.height(16.dp))
-                    Text("جاري سحب البيانات من السيرفر...", color = Color.Gray)
+                    Text("الرجاء الانتظار...", color = Color.Gray)
                 } else {
-                    // زر التصدير بصيغة الإكسل
                     Button(
                         onClick = { viewModel.exportBackup(context, "excel") },
                         modifier = Modifier.fillMaxWidth().height(55.dp),
@@ -90,12 +87,11 @@ fun BackupScreen(
                     ) {
                         Icon(Icons.Default.TableChart, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("استخراج بصيغة Excel (للقراءة)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("استخراج بصيغة Excel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(Modifier.height(16.dp))
 
-                    // زر التصدير بصيغة JSON
                     Button(
                         onClick = { viewModel.exportBackup(context, "json") },
                         modifier = Modifier.fillMaxWidth().height(55.dp),
@@ -104,10 +100,24 @@ fun BackupScreen(
                     ) {
                         Icon(Icons.Default.Code, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("استخراج بصيغة JSON (للتطبيق)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("نسخ احتياطي بصيغة JSON", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(Modifier.height(32.dp))
+                    HorizontalDivider(color = Color.DarkGray)
+                    Spacer(Modifier.height(32.dp))
+
+                    // زر الاستعادة الجديد
+                    Button(
+                        onClick = { filePickerLauncher.launch("application/json") },
+                        modifier = Modifier.fillMaxWidth().height(55.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000)),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("استعادة قاعدة البيانات (JSON)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
-    }
-}
