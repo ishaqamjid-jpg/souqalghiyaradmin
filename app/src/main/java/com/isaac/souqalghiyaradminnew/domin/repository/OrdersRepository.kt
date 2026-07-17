@@ -13,7 +13,8 @@ interface OrdersRepository {
         orderId: String, itemId: String, purchasePrice: Double, sellingPrice: Double, providerName: String, invoiceNumber: String
     ): Result<Unit>
     fun getAllOrdersForReports(): Flow<List<OrderWithItems>>
-    
-    // الدالة الخاصة بمسح إشعار الإدارة عند معالجة الطلب
     suspend fun deleteAdminAlarmByOrderNumber(orderNumber: Long): Result<Unit>
+    
+    // الدالة الجديدة المضافة هنا:
+    fun getUnreadOrders(status: String): Flow<List<OrderWithItems>>
 }
