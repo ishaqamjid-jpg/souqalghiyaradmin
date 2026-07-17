@@ -1,6 +1,13 @@
+package com.isaac.souqalghiyaradminnew.presentation.settings
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.*
@@ -30,7 +37,7 @@ fun BackupScreen(
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { 
+        uri?.let {
             viewModel.restoreBackupFromJson(context, it)
         }
     }
@@ -41,8 +48,8 @@ fun BackupScreen(
                 TopAppBar(
                     title = { Text("النسخة الاحتياطية", color = Color.White) },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) { 
-                            Icon(Icons.Default.ArrowBack, contentDescription = "", tint = Color.White) 
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "", tint = Color.White)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E1E1E))
@@ -59,14 +66,14 @@ fun BackupScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.CloudDownload, 
-                    contentDescription = "Backup", 
-                    tint = Color(0xFFE91E63), 
+                    imageVector = Icons.Default.CloudDownload,
+                    contentDescription = "Backup",
+                    tint = Color(0xFFE91E63),
                     modifier = Modifier.size(100.dp)
                 )
-                
+
                 Spacer(Modifier.height(16.dp))
-                
+
                 Text("إدارة قاعدة البيانات", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
                     text = "سيتم حفظ الملفات في مجلد التنزيلات (Downloads/Souqfiles)",
@@ -121,3 +128,5 @@ fun BackupScreen(
                 }
             }
         }
+    }
+}

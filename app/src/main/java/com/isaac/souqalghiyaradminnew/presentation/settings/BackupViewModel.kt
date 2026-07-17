@@ -4,30 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -55,9 +33,10 @@ class BackupViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
+    // قائمة بأسماء الجداول (Collections) في الفايربيز التي سيتم أخذ نسخة منها
     private val collectionsToBackup = listOf(
-        "users", "UserEmp", "orders", "order_items", 
-        "advertisements", "brands", "location", 
+        "users", "UserEmp", "orders", "order_items",
+        "advertisements", "brands", "location",
         "quality_types", "spare_parts_categories"
     )
 
@@ -80,7 +59,7 @@ class BackupViewModel @Inject constructor(
 
                         for (doc in snapshot.documents) {
                             val dataMap = doc.data ?: emptyMap()
-                            
+
                             // للـ JSON نحتفظ بـ Document ID لسهولة الاستعادة
                             val jsonDoc = JSONObject(dataMap)
                             jsonDoc.put("_doc_id_", doc.id)
@@ -98,7 +77,8 @@ class BackupViewModel @Inject constructor(
                 }
 
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                // تغيير المسار إلى Downloads/Souqfiles ليكون قابلاً للتعديل بسهولة
+
+                // حفظ الملفات في مجلد التنزيلات داخل مجلد خاص Souqfiles
                 val baseDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 val souqDir = File(baseDir, "Souqfiles")
                 if (!souqDir.exists()) souqDir.mkdirs()
@@ -106,15 +86,16 @@ class BackupViewModel @Inject constructor(
                 if (format == "json") {
                     val file = File(souqDir, "SouqAlghiyar_Backup_$timestamp.json")
                     FileWriter(file).use { it.write(backupDataJson.toString(4)) }
-                    Toast.makeText(context, "تم الحفظ في التنزيلات/Souqfiles", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "تم الحفظ بنجاح في التنزيلات/Souqfiles", Toast.LENGTH_LONG).show()
                 } else if (format == "excel") {
                     val file = File(souqDir, "SouqAlghiyar_Backup_$timestamp.csv")
                     val bom = "\uFEFF"
-                    FileWriter(file).use { 
+                    FileWriter(file).use {
                         it.write(bom)
-                        it.write(csvBuilder.toString()) 
+                        it.write(csvBuilder.toString())
                     }
-                    Toast.makeText(context, "تم الحفظ في التنزيلات/Souqfiles (قابل للتعديل)", Toast.LENGTH_LONG).show()
+                    // تم تصحيح الخطأ المطبعي هنا
+                    Toast.makeText(context, "تم حفظ نسخة Excel قابلة للتعديل في التنزيلات/Souqfiles", Toast.LENGTH_LONG).show()
                 }
 
             } catch (e: Exception) {
@@ -138,7 +119,7 @@ class BackupViewModel @Inject constructor(
                 }
 
                 val backupJson = JSONObject(jsonString)
-                
+
                 db.runBatch { batch ->
                     for (collectionName in backupJson.keys()) {
                         val docsArray = backupJson.getJSONArray(collectionName)
@@ -146,9 +127,9 @@ class BackupViewModel @Inject constructor(
                             val jsonDoc = docsArray.getJSONObject(i)
                             val docId = jsonDoc.optString("_doc_id_")
                             jsonDoc.remove("_doc_id_") // نزيل الـ ID من المحتوى
-                            
+
                             val dataMap = jsonToMap(jsonDoc)
-                            
+
                             val docRef = if (docId.isNotEmpty()) {
                                 db.collection(collectionName).document(docId)
                             } else {
@@ -170,7 +151,7 @@ class BackupViewModel @Inject constructor(
         }
     }
 
-    // تحويل JSON إلى Map ليتوافق مع Firestore
+    // دالة مساعدة لتحويل JSON إلى Map ليتوافق مع Firestore
     private fun jsonToMap(jsonObject: JSONObject): Map<String, Any> {
         val map = mutableMapOf<String, Any>()
         val keys = jsonObject.keys()
