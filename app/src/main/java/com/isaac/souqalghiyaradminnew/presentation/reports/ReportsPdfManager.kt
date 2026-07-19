@@ -20,18 +20,16 @@ object ReportsPdfManager {
 
     fun generateFilteredReportPdf(context: Context, orders: List<OrderWithItems>) {
         try {
-            // 1. إعداد مستند الـ PDF
             val pdfDocument = PdfDocument()
-            val pageWidth = 595 // عرض صفحة A4 تقريباً
-            val pageHeight = 842 // طول صفحة A4 تقريباً
+            val pageWidth = 595 
+            val pageHeight = 842 
             var pageNumber = 1
 
-            // 2. إعداد الخطوط والألوان (تم ضبط المحاذاة لليمين لدعم العربية)
             val titlePaint = Paint().apply {
                 textSize = 20f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                color = Color.rgb(13, 27, 109) // لون أزرق غامق (نفس لون الـ TopBar)
-                textAlign = Paint.Align.RIGHT
+                color = Color.rgb(13, 27, 109) 
+                textAlign = Paint.Align.CENTER // لتوسيط العنوان كما في الفاتورة
             }
 
             val headerPaint = Paint().apply {
@@ -48,15 +46,13 @@ object ReportsPdfManager {
                 textAlign = Paint.Align.RIGHT
             }
 
-            // خط ملاحظات الموافقة (أخضر)
             val successNotesPaint = Paint().apply {
                 textSize = 12f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                color = Color.rgb(76, 175, 80) // أخضر
+                color = Color.rgb(76, 175, 80)
                 textAlign = Paint.Align.RIGHT
             }
 
-            // خط أسباب الرفض (أحمر)
             val errorNotesPaint = Paint().apply {
                 textSize = 12f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -68,25 +64,49 @@ object ReportsPdfManager {
                 color = Color.LTGRAY
                 strokeWidth = 1f
             }
+            
+            val topBorderPaint = Paint().apply {
+                color = Color.parseColor("#42A5F5") 
+                strokeWidth = 2f
+            }
 
-            // 3. إنشاء الصفحة الأولى
             var pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
             var page = pdfDocument.startPage(pageInfo)
             var canvas = page.canvas
 
             val rightMargin = pageWidth - 40f
             val leftMargin = 40f
-            var yPosition = 60f
+            var yPosition = 40f
 
-            // رسم العنوان الرئيسي
-            canvas.drawText("التقرير الشامل للطلبات - سوق الغيار", rightMargin, yPosition, titlePaint)
+            // --- 1. رأس التقرير (مشابه تماماً لـ OrderPdfManager) ---
+            val currentDateString = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()).format(java.util.Date())
+            canvas.drawText("التاريخ: $currentDateString", leftMargin, yPosition + 20f, textPaint.apply { textAlign = Paint.Align.LEFT })
+
+            try {
+                // رسم الشعار
+                val logoBitmap = android.graphics.BitmapFactory.decodeResource(context.resources, com.isaac.souqalghiyaradminnew.R.drawable.logo3)
+                if (logoBitmap != null) {
+                    val scaledLogo = android.graphics.Bitmap.createScaledBitmap(logoBitmap, 60, 60, false)
+                    canvas.drawBitmap(scaledLogo, (pageWidth / 2f) - 30f, yPosition, null)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            yPosition += 80f
+            canvas.drawText("التقرير الشامل للطلبات - سوق الغيار", pageWidth / 2f, yPosition, titlePaint)
+            
+            yPosition += 20f
+            canvas.drawLine(leftMargin, yPosition, rightMargin, yPosition, topBorderPaint)
             yPosition += 40f
+
+            // إرجاع المحاذاة لليمين للنصوص العادية
+            textPaint.textAlign = Paint.Align.RIGHT
 
             val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
 
-            // 4. المرور على جميع الطلبات ورسمها
+            // --- 2. المرور على جميع الطلبات ---
             orders.forEach { orderData ->
-                // التحقق من المساحة المتبقية في الصفحة، وفتح صفحة جديدة إذا لزم الأمر
                 if (yPosition > pageHeight - 150f) {
                     pdfDocument.finishPage(page)
                     pageNumber++
@@ -102,7 +122,6 @@ object ReportsPdfManager {
                     else -> "غير محدد"
                 }
 
-                // بيانات الطلب الأساسية
                 canvas.drawText("رقم الطلب: ${order.order_number} | الحالة: ${order.order_status}", rightMargin, yPosition, headerPaint)
                 yPosition += 25f
 
@@ -116,7 +135,6 @@ object ReportsPdfManager {
                 canvas.drawText("رسوم التوصيل: ${order.delivery_fees} ر.ي", rightMargin, yPosition, textPaint)
                 yPosition += 20f
 
-                // ----------- إضافة الملاحظات وأسباب الرفض --------------
                 if (order.order_status.equals("completed", ignoreCase = true) && order.approval_notes.isNotBlank()) {
                     canvas.drawText("ملاحظات الموافقة: ${order.approval_notes}", rightMargin, yPosition, successNotesPaint)
                     yPosition += 20f
@@ -124,14 +142,11 @@ object ReportsPdfManager {
                     canvas.drawText("سبب الرفض: ${order.disapproval_notes}", rightMargin, yPosition, errorNotesPaint)
                     yPosition += 20f
                 }
-                // -------------------------------------------------------
 
-                // تفاصيل القطع
                 canvas.drawText("القطع المطلوبة (${orderData.items.size}):", rightMargin, yPosition, headerPaint)
                 yPosition += 20f
 
                 orderData.items.forEach { item ->
-                    // التحقق من الصفحة مرة أخرى بداخل حلقة القطع (إذا كان الطلب يحتوي على قطع كثيرة)
                     if (yPosition > pageHeight - 80f) {
                         pdfDocument.finishPage(page)
                         pageNumber++
@@ -150,16 +165,13 @@ object ReportsPdfManager {
                     yPosition += 25f
                 }
 
-                // خط فاصل بين الطلبات
                 yPosition += 10f
                 canvas.drawLine(leftMargin, yPosition, rightMargin, yPosition, dividerPaint)
                 yPosition += 30f
             }
 
-            // 5. إنهاء الصفحة وحفظ المستند
             pdfDocument.finishPage(page)
 
-            // تحديد مسار الحفظ في مجلد المستندات الخاص بالتطبيق
             val directory = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
             if (directory != null && !directory.exists()) {
                 directory.mkdirs()
@@ -171,8 +183,8 @@ object ReportsPdfManager {
             pdfDocument.writeTo(FileOutputStream(file))
             pdfDocument.close()
 
-            // 6. فتح الملف بعد الحفظ باستخدام الـ Intent
-            openPdf(context, file)
+            // 3. فتح خيارات المشاركة بدلاً من فتح الملف فقط
+            sharePdf(context, file)
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -180,21 +192,23 @@ object ReportsPdfManager {
         }
     }
 
-    private fun openPdf(context: Context, file: File) {
+    private fun sharePdf(context: Context, file: File) {
         try {
-            // ملاحظة: تأكد من إضافة provider في ملف AndroidManifest.xml لتجنب أخطاء FileUriExposedException
             val uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.provider",
                 file
             )
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/pdf")
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
                 flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
             }
-            context.startActivity(intent)
+            val chooser = Intent.createChooser(intent, "مشاركة التقرير عبر:")
+            chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            context.startActivity(chooser)
         } catch (e: Exception) {
-            Toast.makeText(context, "تم الحفظ، لكن لم يتم العثور على تطبيق لفتح ملفات PDF", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "حدث خطأ أثناء فتح المشاركة، تأكد من FileProvider", Toast.LENGTH_LONG).show()
         }
     }
 }
