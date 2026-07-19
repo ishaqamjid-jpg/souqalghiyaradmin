@@ -1,16 +1,17 @@
 package com.isaac.souqalghiyaradminnew.presentation.orders
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
 import android.widget.Toast
+import androidx.core.content.FileProvider
 import com.isaac.souqalghiyaradminnew.R
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
 import java.io.File
@@ -67,14 +68,12 @@ object OrderPdfManager {
         var startY = 40f
 
         // --- 1. رأس التقرير (الشعار والتاريخ) ---
-        // طباعة التاريخ في اليسار
         val dateString = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()).format(Date())
         canvas.drawText("التاريخ: $dateString", 40f, startY + 20f, datePaint)
 
-        // طباعة الشعار في المنتصف
+        // طباعة الشعار (تم تغييره إلى logo3)
         try {
-            // ملاحظة: تأكد أن الشعار موجود في مجلد drawable أو mipmap
-            val logoBitmap = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+            val logoBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.logo3)
             if (logoBitmap != null) {
                 val scaledLogo = Bitmap.createScaledBitmap(logoBitmap, 60, 60, false)
                 canvas.drawBitmap(scaledLogo, (pageInfo.pageWidth / 2f) - 30f, startY, null)
@@ -103,11 +102,10 @@ object OrderPdfManager {
         canvas.drawLine(40f, startY, pageInfo.pageWidth - 40f, startY, linePaint)
         startY += 30f
 
-        // --- 3. جدول القطع (تصميم احترافي) ---
+        // --- 3. جدول القطع ---
         canvas.drawText("تفاصيل القطع المعتمدة:", pageInfo.pageWidth - 40f, startY, headerPaint)
         startY += 20f
 
-        // خلفية رأس الجدول
         canvas.drawRect(40f, startY, pageInfo.pageWidth - 40f, startY + 30f, tableHeaderBgPaint)
 
         val tableHeaderPaint = Paint(headerPaint).apply { textSize = 12f; color = primaryColor }
@@ -125,7 +123,6 @@ object OrderPdfManager {
         var totalSellingPrice = 0.0
 
         items.forEachIndexed { index, item ->
-            // تلوين خفيف للصفوف الزوجية
             if (index % 2 == 1) {
                 canvas.drawRect(40f, startY - 15f, pageInfo.pageWidth - 40f, startY + 10f, Paint().apply { color = Color.parseColor("#FAFAFA") })
             }
@@ -149,7 +146,6 @@ object OrderPdfManager {
         canvas.drawText("رسوم التوصيل: ${order.delivery_fees}", pageInfo.pageWidth - 40f, startY, headerPaint)
         startY += 35f
         
-        // مربع المبلغ الإجمالي
         val totalBoxPaint = Paint().apply { color = Color.parseColor("#E8F5E9") }
         canvas.drawRect(pageInfo.pageWidth - 250f, startY - 25f, pageInfo.pageWidth - 40f, startY + 15f, totalBoxPaint)
 
@@ -161,7 +157,7 @@ object OrderPdfManager {
 
         pdfDocument.finishPage(page)
 
-        // --- 5. حفظ الملف في التنزيلات/Souqfiles ---
+        // --- 5. حفظ الملف ومشاركته ---
         val baseDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val souqDir = File(baseDir, "Souqfiles")
         if (!souqDir.exists()) souqDir.mkdirs()
@@ -171,12 +167,33 @@ object OrderPdfManager {
 
         try {
             pdfDocument.writeTo(FileOutputStream(file))
-            Toast.makeText(context, "تم حفظ الفاتورة في التنزيلات/Souqfiles", Toast.LENGTH_LONG).show()
+            // فتح نافذة المشاركة بدلاً من الحفظ فقط
+            sharePdf(context, file)
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(context, "حدث خطأ أثناء حفظ الـ PDF: ${e.message}", Toast.LENGTH_LONG).show()
         } finally {
             pdfDocument.close()
+        }
+    }
+
+    private fun sharePdf(context: Context, file: File) {
+        try {
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            val chooser = Intent.createChooser(intent, "مشاركة الفاتورة عبر:")
+            chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            context.startActivity(chooser)
+        } catch (e: Exception) {
+            Toast.makeText(context, "حدث خطأ، تأكد من تواجد برامج تدعم المشاركة", Toast.LENGTH_LONG).show()
         }
     }
 }
