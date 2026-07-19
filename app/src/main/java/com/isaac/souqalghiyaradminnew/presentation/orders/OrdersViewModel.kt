@@ -32,7 +32,6 @@ class OrdersViewModel @Inject constructor(
     val waitingOrders: StateFlow<List<OrderWithItems>> = repository.getWaitingOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // الطلبات الجديدة غير المقروءة (تُجلب ديناميكياً بناءً على وجود إشعار)
     val unreadCanceledOrders: StateFlow<List<OrderWithItems>> = repository.getUnreadOrders("canceled")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -44,6 +43,13 @@ class OrdersViewModel @Inject constructor(
 
     private val _completedOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val completedOrders: StateFlow<List<OrderWithItems>> = _completedOrders.asStateFlow()
+
+    // متغيرات لعرض أحدث 3 طلبات بشكل افتراضي
+    private val _latestCompletedOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
+    val latestCompletedOrders: StateFlow<List<OrderWithItems>> = _latestCompletedOrders.asStateFlow()
+
+    private val _latestCanceledOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
+    val latestCanceledOrders: StateFlow<List<OrderWithItems>> = _latestCanceledOrders.asStateFlow()
 
     private val _isLoadingHistorical = MutableStateFlow(false)
     val isLoadingHistorical: StateFlow<Boolean> = _isLoadingHistorical.asStateFlow()
@@ -74,7 +80,6 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    // دالة لحذف الإشعار وإخفاء الطلب من قائمة "غير المقروءة"
     fun markOrderAsReadAndRemoveAlarm(orderNumber: Long) {
         viewModelScope.launch {
             repository.deleteAdminAlarmByOrderNumber(orderNumber)
@@ -92,6 +97,27 @@ class OrdersViewModel @Inject constructor(
                 _completedOrders.value = result
             }
             _isLoadingHistorical.value = false
+        }
+    }
+
+    // دالة لجلب أحدث 3 طلبات وعرضها تلقائياً لتجنب ظهور الشاشة فارغة
+    fun fetchLatestOrders(status: String) {
+        viewModelScope.launch {
+            try {
+                // نجلب بيانات آخر 30 يوماً ونأخذ منها أحدث 3 طلبات
+                val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
+                val result = repository.getOrdersByDateRange(status, thirtyDaysAgo, System.currentTimeMillis())
+                
+                val top3 = result.take(3) // أحدث 3 فواتير
+                
+                if (status == "completed") {
+                    _latestCompletedOrders.value = top3
+                } else {
+                    _latestCanceledOrders.value = top3
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }
