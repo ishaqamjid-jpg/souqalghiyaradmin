@@ -67,24 +67,39 @@ object OrderPdfManager {
 
         var startY = 40f
 
-        // --- 1. رأس التقرير (الشعار والتاريخ) ---
+        // --- 1. رأس التقرير (التاريخ والشعار) ---
         val dateString = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()).format(Date())
         canvas.drawText("التاريخ: $dateString", 40f, startY + 20f, datePaint)
 
-        // طباعة الشعار (تم تغييره إلى logo3)
+        // طباعة الشعار مع الحفاظ على التناسب (Aspect Ratio) وتوسيطه
         try {
             val logoBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.logo3)
             if (logoBitmap != null) {
-                val scaledLogo = Bitmap.createScaledBitmap(logoBitmap, 60, 60, false)
-                canvas.drawBitmap(scaledLogo, (pageInfo.pageWidth / 2f) - 30f, startY, null)
+                // تحديد عرض مناسب للشعار، وحساب الطول تلقائياً للحفاظ على الدقة
+                val targetWidth = 140
+                val aspectRatio = logoBitmap.width.toFloat() / logoBitmap.height.toFloat()
+                val targetHeight = (targetWidth / aspectRatio).toInt()
+
+                // true تعني فلترة الصورة لتظهر بدقة أعلى عند تغيير حجمها
+                val scaledLogo = Bitmap.createScaledBitmap(logoBitmap, targetWidth, targetHeight, true)
+
+                // حساب نقطة X ليكون الشعار في المنتصف تماماً
+                val logoX = (pageInfo.pageWidth - targetWidth) / 2f
+                canvas.drawBitmap(scaledLogo, logoX, startY, null)
+
+                // النزول لأسفل بمقدار طول الشعار + مسافة إضافية
+                startY += targetHeight + 25f
+            } else {
+                startY += 40f
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            startY += 40f
         }
 
-        startY += 80f
+        // رسم عنوان الفاتورة والخط الفاصل تحت الشعار
         canvas.drawText("فاتورة طلب قطع غيار", pageInfo.pageWidth / 2f, startY, titlePaint)
-        
+
         startY += 20f
         canvas.drawLine(40f, startY, pageInfo.pageWidth - 40f, startY, linePaint)
 
@@ -114,7 +129,7 @@ object OrderPdfManager {
         canvas.drawText("الكمية", 250f, startY, tableHeaderPaint)
         canvas.drawText("السعر", 160f, startY, tableHeaderPaint)
         canvas.drawText("الإجمالي", 80f, startY, tableHeaderPaint)
-        
+
         startY += 15f
         canvas.drawLine(40f, startY, pageInfo.pageWidth - 40f, startY, linePaint)
         startY += 25f
@@ -132,7 +147,7 @@ object OrderPdfManager {
             canvas.drawText("${item.quantity}", 250f, startY, tableContentPaint)
             canvas.drawText("${item.selling_price}", 160f, startY, tableContentPaint)
             canvas.drawText("$itemTotal", 80f, startY, tableContentPaint)
-            
+
             totalSellingPrice += itemTotal
             startY += 25f
         }
@@ -145,19 +160,18 @@ object OrderPdfManager {
         totalSellingPrice += order.delivery_fees
         canvas.drawText("رسوم التوصيل: ${order.delivery_fees}", pageInfo.pageWidth - 40f, startY, headerPaint)
         startY += 35f
-        
+
         val totalBoxPaint = Paint().apply { color = Color.parseColor("#E8F5E9") }
         canvas.drawRect(pageInfo.pageWidth - 250f, startY - 25f, pageInfo.pageWidth - 40f, startY + 15f, totalBoxPaint)
 
-        val totalPaint = Paint(headerPaint).apply { 
+        val totalPaint = Paint(headerPaint).apply {
             textSize = 16f
-            color = Color.parseColor("#2E7D32") 
+            color = Color.parseColor("#2E7D32")
         }
         canvas.drawText("الإجمالي الكلي: $totalSellingPrice ريال", pageInfo.pageWidth - 50f, startY, totalPaint)
 
         pdfDocument.finishPage(page)
 
-        // --- 5. حفظ الملف ومشاركته ---
         val baseDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val souqDir = File(baseDir, "Souqfiles")
         if (!souqDir.exists()) souqDir.mkdirs()
@@ -167,7 +181,6 @@ object OrderPdfManager {
 
         try {
             pdfDocument.writeTo(FileOutputStream(file))
-            // فتح نافذة المشاركة بدلاً من الحفظ فقط
             sharePdf(context, file)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -179,21 +192,26 @@ object OrderPdfManager {
 
     private fun sharePdf(context: Context, file: File) {
         try {
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.provider",
-                file
-            )
-            val intent = Intent(Intent.ACTION_SEND).apply {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/pdf"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            val chooser = Intent.createChooser(intent, "مشاركة الفاتورة عبر:")
-            chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            val chooser = Intent.createChooser(shareIntent, "مشاركة الفاتورة عبر:")
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(chooser)
         } catch (e: Exception) {
-            Toast.makeText(context, "حدث خطأ، تأكد من تواجد برامج تدعم المشاركة", Toast.LENGTH_LONG).show()
+            try {
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/pdf")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(viewIntent)
+            } catch (ex: Exception) {
+                Toast.makeText(context, "تم حفظ الفاتورة بنجاح في التنزيلات", Toast.LENGTH_LONG).show()
+            }
         }
     }
 }

@@ -21,15 +21,15 @@ object ReportsPdfManager {
     fun generateFilteredReportPdf(context: Context, orders: List<OrderWithItems>) {
         try {
             val pdfDocument = PdfDocument()
-            val pageWidth = 595 
-            val pageHeight = 842 
+            val pageWidth = 595
+            val pageHeight = 842
             var pageNumber = 1
 
             val titlePaint = Paint().apply {
                 textSize = 20f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                color = Color.rgb(13, 27, 109) 
-                textAlign = Paint.Align.CENTER // لتوسيط العنوان كما في الفاتورة
+                color = Color.rgb(13, 27, 109)
+                textAlign = Paint.Align.CENTER
             }
 
             val headerPaint = Paint().apply {
@@ -64,9 +64,9 @@ object ReportsPdfManager {
                 color = Color.LTGRAY
                 strokeWidth = 1f
             }
-            
+
             val topBorderPaint = Paint().apply {
-                color = Color.parseColor("#42A5F5") 
+                color = Color.parseColor("#42A5F5")
                 strokeWidth = 2f
             }
 
@@ -78,34 +78,41 @@ object ReportsPdfManager {
             val leftMargin = 40f
             var yPosition = 40f
 
-            // --- 1. رأس التقرير (مشابه تماماً لـ OrderPdfManager) ---
+            // --- 1. رأس التقرير ---
             val currentDateString = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()).format(java.util.Date())
             canvas.drawText("التاريخ: $currentDateString", leftMargin, yPosition + 20f, textPaint.apply { textAlign = Paint.Align.LEFT })
 
+            // طباعة الشعار مع الحفاظ على الأبعاد وتوسيطه
             try {
-                // رسم الشعار
                 val logoBitmap = android.graphics.BitmapFactory.decodeResource(context.resources, com.isaac.souqalghiyaradminnew.R.drawable.logo3)
                 if (logoBitmap != null) {
-                    val scaledLogo = android.graphics.Bitmap.createScaledBitmap(logoBitmap, 60, 60, false)
-                    canvas.drawBitmap(scaledLogo, (pageWidth / 2f) - 30f, yPosition, null)
+                    val targetWidth = 140
+                    val aspectRatio = logoBitmap.width.toFloat() / logoBitmap.height.toFloat()
+                    val targetHeight = (targetWidth / aspectRatio).toInt()
+
+                    val scaledLogo = android.graphics.Bitmap.createScaledBitmap(logoBitmap, targetWidth, targetHeight, true)
+                    val logoX = (pageWidth - targetWidth) / 2f
+                    canvas.drawBitmap(scaledLogo, logoX, yPosition, null)
+
+                    yPosition += targetHeight + 25f
+                } else {
+                    yPosition += 40f
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                yPosition += 40f
             }
 
-            yPosition += 80f
             canvas.drawText("التقرير الشامل للطلبات - سوق الغيار", pageWidth / 2f, yPosition, titlePaint)
-            
+
             yPosition += 20f
             canvas.drawLine(leftMargin, yPosition, rightMargin, yPosition, topBorderPaint)
             yPosition += 40f
 
-            // إرجاع المحاذاة لليمين للنصوص العادية
             textPaint.textAlign = Paint.Align.RIGHT
-
             val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
 
-            // --- 2. المرور على جميع الطلبات ---
+            // --- 2. المرور على الطلبات ---
             orders.forEach { orderData ->
                 if (yPosition > pageHeight - 150f) {
                     pdfDocument.finishPage(page)
@@ -159,7 +166,7 @@ object ReportsPdfManager {
                     val itemDesc = "- ${item.part_name} | الكمية: ${item.quantity} | التاجر: ${item.provider_name.ifEmpty { "غير محدد" }}"
                     canvas.drawText(itemDesc, rightMargin - 20f, yPosition, textPaint)
                     yPosition += 20f
-                    
+
                     val priceDesc = "  سعر الشراء: ${item.purchase_price} | سعر البيع: ${item.selling_price} | الفاتورة: ${item.invoice_number.ifEmpty { "-" }}"
                     canvas.drawText(priceDesc, rightMargin - 20f, yPosition, textPaint)
                     yPosition += 25f
@@ -176,14 +183,13 @@ object ReportsPdfManager {
             if (directory != null && !directory.exists()) {
                 directory.mkdirs()
             }
-            
+
             val fileName = "SouqAlghiyar_Report_${System.currentTimeMillis()}.pdf"
             val file = File(directory, fileName)
-            
+
             pdfDocument.writeTo(FileOutputStream(file))
             pdfDocument.close()
 
-            // 3. فتح خيارات المشاركة بدلاً من فتح الملف فقط
             sharePdf(context, file)
 
         } catch (e: Exception) {
@@ -194,21 +200,26 @@ object ReportsPdfManager {
 
     private fun sharePdf(context: Context, file: File) {
         try {
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.provider",
-                file
-            )
-            val intent = Intent(Intent.ACTION_SEND).apply {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/pdf"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            val chooser = Intent.createChooser(intent, "مشاركة التقرير عبر:")
-            chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            val chooser = Intent.createChooser(shareIntent, "مشاركة التقرير عبر:")
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(chooser)
         } catch (e: Exception) {
-            Toast.makeText(context, "حدث خطأ أثناء فتح المشاركة، تأكد من FileProvider", Toast.LENGTH_LONG).show()
+            try {
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/pdf")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(viewIntent)
+            } catch (ex: Exception) {
+                Toast.makeText(context, "تم الحفظ بنجاح في المستندات", Toast.LENGTH_LONG).show()
+            }
         }
     }
 }
