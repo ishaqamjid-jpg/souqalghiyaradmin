@@ -1,6 +1,7 @@
 package com.isaac.souqalghiyaradminnew.presentation.orders
 
 import android.app.DatePickerDialog
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
+import com.isaac.souqalghiyaradminnew.presentation.reports.ReportsPdfManager
 import kotlinx.coroutines.flow.StateFlow
 import java.util.Calendar
 
@@ -79,8 +81,8 @@ fun OrdersManagementScreen(
                 when (selectedTab) {
                     0 -> PendingOrdersSection(viewModel)
                     1 -> WaitingOrdersSection(viewModel)
-                    2 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders, viewModel.unreadCanceledOrders)
-                    3 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders, viewModel.unreadCompletedOrders)
+                    2 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders, viewModel.unreadCanceledOrders, viewModel.latestCanceledOrders)
+                    3 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders, viewModel.unreadCompletedOrders, viewModel.latestCompletedOrders)
                 }
             }
         }
@@ -104,7 +106,8 @@ fun HistoricalOrdersSection(
     viewModel: OrdersViewModel,
     status: String,
     historicalOrdersFlow: StateFlow<List<OrderWithItems>>,
-    unreadOrdersFlow: StateFlow<List<OrderWithItems>>
+    unreadOrdersFlow: StateFlow<List<OrderWithItems>>,
+    latestOrdersFlow: StateFlow<List<OrderWithItems>>
 ) {
     val context = LocalContext.current
     var fromDate by remember { mutableStateOf<Long?>(null) }
@@ -114,7 +117,13 @@ fun HistoricalOrdersSection(
 
     val historicalOrders by historicalOrdersFlow.collectAsState()
     val unreadOrders by unreadOrdersFlow.collectAsState()
+    val latestOrders by latestOrdersFlow.collectAsState()
     val isLoading by viewModel.isLoadingHistorical.collectAsState()
+
+    // تشغيل الجلب التلقائي لأحدث 3 فواتير عند فتح الشاشة
+    LaunchedEffect(status) {
+        viewModel.fetchLatestOrders(status)
+    }
 
     fun openDatePicker(onDateSelected: (Long, String) -> Unit) {
         val calendar = Calendar.getInstance()
@@ -146,7 +155,7 @@ fun HistoricalOrdersSection(
                 items(unreadOrders, key = { it.order.order_id }) { orderWithItems ->
                     OrderExpandableCard(
                         data = orderWithItems, viewModel = viewModel, 
-                        isEditable = false, showPdfExport = false, // تم إخفاء الـ PDF
+                        isEditable = false, showPdfExport = true,
                         onExpand = { viewModel.markOrderAsReadAndRemoveAlarm(orderWithItems.order.order_number.toLong()) }
                     )
                 }
@@ -173,29 +182,63 @@ fun HistoricalOrdersSection(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        if (fromDate != null && toDate != null) {
-                            val endOfDay = toDate!! + 86399999L
-                            viewModel.fetchOrdersByDate(status, fromDate!!, endOfDay)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D)),
-                    enabled = fromDate != null && toDate != null && !isLoading
-                ) {
-                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
-                    else Text("بحث في السجلات", fontWeight = FontWeight.Bold)
+                // زر المشاركة تمت إضافته بجانب زر البحث
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            if (fromDate != null && toDate != null) {
+                                val endOfDay = toDate!! + 86399999L
+                                viewModel.fetchOrdersByDate(status, fromDate!!, endOfDay)
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(45.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D)),
+                        enabled = fromDate != null && toDate != null && !isLoading
+                    ) {
+                        if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                        else Text("بحث السجلات", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            // يقوم بمشاركة نتائج البحث، أو أحدث 3 طلبات إذا لم يتم البحث
+                            val listToExport = if (historicalOrders.isNotEmpty()) historicalOrders else latestOrders
+                            if(listToExport.isNotEmpty()){
+                                ReportsPdfManager.generateFilteredReportPdf(context, listToExport)
+                            } else {
+                                Toast.makeText(context, "لا توجد بيانات لمشاركتها", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(45.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D))
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("مشاركة التقرير", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
                 }
             }
         }
 
-        if (historicalOrders.isEmpty() && !isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = if(fromDate == null) "الرجاء تحديد التاريخ والضغط على بحث" else "لا توجد طلبات في هذه الفترة", color = Color.Gray)
+        if (isLoading) {
+             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFF0D1B6D))
             }
+        } else if (historicalOrders.isNotEmpty()) {
+            OrdersList(orders = historicalOrders, viewModel = viewModel, isEditable = false, showPdfExport = true)
+        } else if (fromDate == null && latestOrders.isNotEmpty()) {
+            // عرض أحدث 3 فواتير بشكل تلقائي إذا لم يبحث المستخدم
+            Text(
+                text = "أحدث 3 طلبات مسجلة", 
+                color = Color.Gray, 
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                fontWeight = FontWeight.Bold, fontSize = 14.sp
+            )
+            OrdersList(orders = latestOrders, viewModel = viewModel, isEditable = false, showPdfExport = true)
         } else {
-            OrdersList(orders = historicalOrders, viewModel = viewModel, isEditable = false, showPdfExport = false) // تم إخفاء الـ PDF
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(text = "لا توجد طلبات في هذه الفترة", color = Color.Gray)
+            }
         }
     }
 }
@@ -221,7 +264,7 @@ fun OrderExpandableCard(
     data: OrderWithItems, 
     viewModel: OrdersViewModel, 
     isEditable: Boolean,
-    showPdfExport: Boolean, // إضافة معامل للتحكم في ظهور زر الـ PDF
+    showPdfExport: Boolean, 
     onExpand: () -> Unit = {}
 ) {
     val order = data.order
@@ -312,7 +355,6 @@ fun OrderExpandableCard(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            // زر الـ PDF يظهر في وضع التعديل (الطلبات المعلقة)
                             if (showPdfExport) {
                                 OutlinedButton(
                                     onClick = { OrderPdfManager.generateOrderPdf(context, data) },
@@ -321,7 +363,7 @@ fun OrderExpandableCard(
                                 ) {
                                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("تصدير PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("مشاركة PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
                             
@@ -353,15 +395,14 @@ fun OrderExpandableCard(
                         ) {
                             Text("رسوم التوصيل: ${order.delivery_fees}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
 
-                            // في غير وضع التعديل (مثل قيد الموافقة) يظهر إذا كان مسموحاً
                             if (showPdfExport) {
                                 OutlinedButton(
                                     onClick = { OrderPdfManager.generateOrderPdf(context, data) },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D))
                                 ) {
-                                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("تصدير PDF", fontWeight = FontWeight.Bold)
+                                    Text("مشاركة PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
                         }
