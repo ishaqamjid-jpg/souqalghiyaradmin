@@ -112,6 +112,9 @@ object OrderPdfManager {
         canvas.drawText("الماركة: ${order.brand_name} | الصنع: ${order.manufacture}", pageInfo.pageWidth - 40f, startY, normalPaint)
         startY += 25f
         canvas.drawText("الموقع: ${order.delivery_location}", pageInfo.pageWidth - 40f, startY, normalPaint)
+        startY += 25f
+        // إضافة رقم العميل في الـ PDF (مؤقتاً نعرض الـ user_id حتى يتم تعديل تطبيق العملاء لإرسال رقم الهاتف)
+        canvas.drawText("رقم العميل: ${order.user_id}", pageInfo.pageWidth - 40f, startY, normalPaint)
 
         startY += 40f
         canvas.drawLine(40f, startY, pageInfo.pageWidth - 40f, startY, linePaint)
