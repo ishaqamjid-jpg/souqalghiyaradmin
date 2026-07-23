@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.firebase.firestore.FirebaseFirestore
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
 import com.isaac.souqalghiyaradminnew.presentation.reports.ReportsPdfManager
 import kotlinx.coroutines.flow.StateFlow
@@ -285,7 +286,25 @@ fun OrderExpandableCard(
     Card(
         modifier = Modifier.fillMaxWidth().clickable { 
             expanded = !expanded 
-            if (expanded) onExpand() 
+            if (expanded) {
+                onExpand() 
+                // --- إضافة مسح الإشعار فوراً عند فتح الطلب المكتمل أو المرفوض ---
+                if (order.order_status == "completed" || order.order_status == "canceled") {
+                    try {
+                        FirebaseFirestore.getInstance().collection("admin_alarm")
+                            .whereEqualTo("order_number", order.order_number)
+                            .get()
+                            .addOnSuccessListener { snapshot ->
+                                for (doc in snapshot.documents) {
+                                    doc.reference.delete()
+                                }
+                            }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                // ------------------------------------------------------------------
+            }
         },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp),
