@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
         val savedAdminId = sharedPref.getString("admin_id", "") ?: ""
         val savedAdminPermissions = sharedPref.getString("admin_permissions", "employee") ?: "employee"
 
+        // تحديث التوكن في Firestore إذا كان مسجلاً للدخول
         if (isLoggedIn && savedAdminId.isNotEmpty()) {
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                 if (task.isSuccessful) {
@@ -119,23 +120,16 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToReports = { navController.navigate("reports") },
                                 onNavigateToSettings = { navController.navigate("settings") },
                                 onLogoutClick = {
-                                    // 1. مسح التوكن من الداتا بيز
                                     if (currentSessionId.isNotEmpty()) {
                                         FirebaseFirestore.getInstance().collection("UserEmp").document(currentSessionId)
                                             .update("fcm_token", "")
                                     }
-                                    // 2. مسح البيانات المحلية
                                     sharedPref.edit().clear().apply()
                                     currentSessionId = ""
                                     currentSessionName = ""
                                     currentSessionPermissions = ""
-                                    
-                                    // 3. توجيه قاطع لشاشة الدخول ومسح الشجرة بالكامل
                                     navController.navigate("login") {
-                                        popUpTo(navController.graph.id) { 
-                                            inclusive = true 
-                                        }
-                                        launchSingleTop = true
+                                        popUpTo("dashboard") { inclusive = true }
                                     }
                                 }
                             )
