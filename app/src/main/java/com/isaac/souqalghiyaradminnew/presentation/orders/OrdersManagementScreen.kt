@@ -183,7 +183,6 @@ fun HistoricalOrdersSection(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                // زر المشاركة تمت إضافته بجانب زر البحث
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
@@ -202,7 +201,6 @@ fun HistoricalOrdersSection(
 
                     OutlinedButton(
                         onClick = {
-                            // يقوم بمشاركة نتائج البحث، أو أحدث 3 طلبات إذا لم يتم البحث
                             val listToExport = if (historicalOrders.isNotEmpty()) historicalOrders else latestOrders
                             if(listToExport.isNotEmpty()){
                                 ReportsPdfManager.generateFilteredReportPdf(context, listToExport)
@@ -228,7 +226,6 @@ fun HistoricalOrdersSection(
         } else if (historicalOrders.isNotEmpty()) {
             OrdersList(orders = historicalOrders, viewModel = viewModel, isEditable = false, showPdfExport = true)
         } else if (fromDate == null && latestOrders.isNotEmpty()) {
-            // عرض أحدث 3 فواتير بشكل تلقائي إذا لم يبحث المستخدم
             Text(
                 text = "أحدث 3 طلبات مسجلة", 
                 color = Color.Gray, 
@@ -288,7 +285,6 @@ fun OrderExpandableCard(
             expanded = !expanded 
             if (expanded) {
                 onExpand() 
-                // --- إضافة مسح الإشعار فوراً عند فتح الطلب المكتمل أو المرفوض ---
                 if (order.order_status == "completed" || order.order_status == "canceled") {
                     try {
                         FirebaseFirestore.getInstance().collection("admin_alarm")
@@ -303,7 +299,6 @@ fun OrderExpandableCard(
                         e.printStackTrace()
                     }
                 }
-                // ------------------------------------------------------------------
             }
         },
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -316,6 +311,9 @@ fun OrderExpandableCard(
                     Text("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D), fontSize = 16.sp)
                     Text("الماركة: ${order.brand_name} | الصنع: ${order.manufacture}", color = Color.DarkGray, fontSize = 14.sp)
                     Text("الموقع: ${order.delivery_location}", color = Color.Gray, fontSize = 12.sp)
+                    // إضافة رقم العميل هنا أيضاً
+                    Text("رقم العميل: ${order.user_id}", color = Color.Gray, fontSize = 12.sp)
+                    
                     Text(
                         text = "الحالة: ${order.order_status}",
                         color = if (order.order_status == "canceled") Color.Red else Color(0xFF4CAF50),
