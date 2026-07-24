@@ -2,6 +2,7 @@ package com.isaac.souqalghiyaradminnew.presentation.orders
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
 import com.isaac.souqalghiyaradminnew.domain.repository.OrdersRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 data class ItemAdminPricing(
@@ -44,7 +46,6 @@ class OrdersViewModel @Inject constructor(
     private val _completedOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val completedOrders: StateFlow<List<OrderWithItems>> = _completedOrders.asStateFlow()
 
-    // متغيرات لعرض أحدث 3 طلبات بشكل افتراضي
     private val _latestCompletedOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val latestCompletedOrders: StateFlow<List<OrderWithItems>> = _latestCompletedOrders.asStateFlow()
 
@@ -53,6 +54,34 @@ class OrdersViewModel @Inject constructor(
 
     private val _isLoadingHistorical = MutableStateFlow(false)
     val isLoadingHistorical: StateFlow<Boolean> = _isLoadingHistorical.asStateFlow()
+
+    // --- الإضافة الخاصة بجلب رقم هاتف العميل من جدول users ---
+    private val _userPhones = MutableStateFlow<Map<String, String>>(emptyMap())
+    val userPhones: StateFlow<Map<String, String>> = _userPhones.asStateFlow()
+
+    fun fetchUserPhone(userId: String) {
+        if (userId.isEmpty() || _userPhones.value.containsKey(userId)) return
+        viewModelScope.launch {
+            try {
+                val db = FirebaseFirestore.getInstance()
+                // أولاً: نبحث بداخل جدول users حيث user_id يطابق المعرف
+                val snapshot = db.collection("users").whereEqualTo("user_id", userId).get().await()
+                if (!snapshot.isEmpty) {
+                    val phone = snapshot.documents.first().getString("phone_number") ?: "غير متوفر"
+                    _userPhones.value = _userPhones.value.toMutableMap().apply { put(userId, phone) }
+                } else {
+                    // في حال كان الـ Document ID هو نفسه الـ user_id
+                    val doc = db.collection("users").document(userId).get().await()
+                    val phone = doc.getString("phone_number") ?: "غير متوفر"
+                    _userPhones.value = _userPhones.value.toMutableMap().apply { put(userId, phone) }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _userPhones.value = _userPhones.value.toMutableMap().apply { put(userId, "غير متوفر") }
+            }
+        }
+    }
+    // -----------------------------------------------------------
 
     fun approveOrder(
         orderId: String,
@@ -100,16 +129,14 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    // دالة لجلب أحدث 3 طلبات وعرضها تلقائياً لتجنب ظهور الشاشة فارغة
     fun fetchLatestOrders(status: String) {
         viewModelScope.launch {
             try {
-                // نجلب بيانات آخر 30 يوماً ونأخذ منها أحدث 3 طلبات
                 val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
                 val result = repository.getOrdersByDateRange(status, thirtyDaysAgo, System.currentTimeMillis())
-                
-                val top3 = result.take(3) // أحدث 3 فواتير
-                
+
+                val top3 = result.take(3)
+
                 if (status == "completed") {
                     _latestCompletedOrders.value = top3
                 } else {

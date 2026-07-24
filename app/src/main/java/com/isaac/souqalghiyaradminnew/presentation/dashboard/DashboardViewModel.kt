@@ -21,7 +21,7 @@ class DashboardViewModel @Inject constructor(
 ) : ViewModel() {
 
     val pendingOrdersCount: StateFlow<Int> = ordersRepository.getPendingOrders()
-        .map { orders -> orders.size } 
+        .map { orders -> orders.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private val _isAccountBanned = MutableStateFlow(false)
@@ -34,9 +34,9 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             adminRepository.observeAdminProfile(currentUserId).collect { user ->
                 if (user == null || user.status != "active") {
-                    _isAccountBanned.value = true 
+                    _isAccountBanned.value = true
                 } else {
-                    _userPermissions.value = user.user_permissions 
+                    _userPermissions.value = user.user_permissions
                 }
             }
         }

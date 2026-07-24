@@ -155,7 +155,7 @@ fun HistoricalOrdersSection(
             ) {
                 items(unreadOrders, key = { it.order.order_id }) { orderWithItems ->
                     OrderExpandableCard(
-                        data = orderWithItems, viewModel = viewModel, 
+                        data = orderWithItems, viewModel = viewModel,
                         isEditable = false, showPdfExport = true,
                         onExpand = { viewModel.markOrderAsReadAndRemoveAlarm(orderWithItems.order.order_number.toLong()) }
                     )
@@ -220,15 +220,15 @@ fun HistoricalOrdersSection(
         }
 
         if (isLoading) {
-             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Color(0xFF0D1B6D))
             }
         } else if (historicalOrders.isNotEmpty()) {
             OrdersList(orders = historicalOrders, viewModel = viewModel, isEditable = false, showPdfExport = true)
         } else if (fromDate == null && latestOrders.isNotEmpty()) {
             Text(
-                text = "أحدث 3 طلبات مسجلة", 
-                color = Color.Gray, 
+                text = "أحدث 3 طلبات مسجلة",
+                color = Color.Gray,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 fontWeight = FontWeight.Bold, fontSize = 14.sp
             )
@@ -259,15 +259,15 @@ fun OrdersList(orders: List<OrderWithItems>, viewModel: OrdersViewModel, isEdita
 
 @Composable
 fun OrderExpandableCard(
-    data: OrderWithItems, 
-    viewModel: OrdersViewModel, 
+    data: OrderWithItems,
+    viewModel: OrdersViewModel,
     isEditable: Boolean,
-    showPdfExport: Boolean, 
+    showPdfExport: Boolean,
     onExpand: () -> Unit = {}
 ) {
     val order = data.order
     val items = data.items
-    val context = LocalContext.current 
+    val context = LocalContext.current
 
     var expanded by remember { mutableStateOf(false) }
     var deliveryFees by remember { mutableStateOf(order.delivery_fees.toString()) }
@@ -280,11 +280,19 @@ fun OrderExpandableCard(
         }
     }
 
+    // جلب رقم الهاتف للعميل
+    val userPhones by viewModel.userPhones.collectAsState()
+    val clientPhone = userPhones[order.user_id] ?: "جاري الجلب..."
+
+    LaunchedEffect(order.user_id) {
+        viewModel.fetchUserPhone(order.user_id)
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { 
-            expanded = !expanded 
+        modifier = Modifier.fillMaxWidth().clickable {
+            expanded = !expanded
             if (expanded) {
-                onExpand() 
+                onExpand()
                 if (order.order_status == "completed" || order.order_status == "canceled") {
                     try {
                         FirebaseFirestore.getInstance().collection("admin_alarm")
@@ -311,9 +319,10 @@ fun OrderExpandableCard(
                     Text("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D), fontSize = 16.sp)
                     Text("الماركة: ${order.brand_name} | الصنع: ${order.manufacture}", color = Color.DarkGray, fontSize = 14.sp)
                     Text("الموقع: ${order.delivery_location}", color = Color.Gray, fontSize = 12.sp)
-                    // إضافة رقم العميل هنا أيضاً
-                    Text("رقم العميل: ${order.user_id}", color = Color.Gray, fontSize = 12.sp)
-                    
+
+                    // تم وضع رقم الهاتف الذي تم جلبه آلياً
+                    Text("رقم الهاتف: $clientPhone", color = Color.Gray, fontSize = 12.sp)
+
                     Text(
                         text = "الحالة: ${order.order_status}",
                         color = if (order.order_status == "canceled") Color.Red else Color(0xFF4CAF50),
@@ -374,7 +383,7 @@ fun OrderExpandableCard(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             if (showPdfExport) {
                                 OutlinedButton(
-                                    onClick = { OrderPdfManager.generateOrderPdf(context, data) },
+                                    onClick = { OrderPdfManager.generateOrderPdf(context, data, clientPhone) },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D)),
                                     modifier = Modifier.height(45.dp)
                                 ) {
@@ -383,7 +392,7 @@ fun OrderExpandableCard(
                                     Text("مشاركة PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
-                            
+
                             Row {
                                 TextButton(onClick = { viewModel.rejectOrder(order.order_id) }) {
                                     Text("إلغاء", color = Color.Red, fontWeight = FontWeight.Bold)
@@ -414,7 +423,7 @@ fun OrderExpandableCard(
 
                             if (showPdfExport) {
                                 OutlinedButton(
-                                    onClick = { OrderPdfManager.generateOrderPdf(context, data) },
+                                    onClick = { OrderPdfManager.generateOrderPdf(context, data, clientPhone) },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D))
                                 ) {
                                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))

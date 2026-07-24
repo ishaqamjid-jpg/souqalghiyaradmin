@@ -43,7 +43,7 @@ fun isInternetAvailable(context: Context): Boolean {
 @Composable
 fun MainDashboardScreen(
     adminName: String,
-    currentUserId: String, 
+    currentUserId: String,
     viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToEmpUsers: () -> Unit,
     onNavigateToClientUsers: () -> Unit,
@@ -51,8 +51,8 @@ fun MainDashboardScreen(
     onNavigateToOrders: () -> Unit,
     onNavigateToConstants: () -> Unit,
     onNavigateToReports: () -> Unit,
-    onNavigateToSettings: () -> Unit, 
-    onLogoutClick: () -> Unit 
+    onNavigateToSettings: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
     val pendingOrders by viewModel.pendingOrdersCount.collectAsState()
     val isAccountBanned by viewModel.isAccountBanned.collectAsState()
@@ -91,8 +91,8 @@ fun MainDashboardScreen(
                         titleContentColor = Color.White
                     ),
                     actions = {
-                        IconButton(onClick = { 
-                            performActionIfConnected { viewModel.logout(onLogoutClick) } 
+                        IconButton(onClick = {
+                            performActionIfConnected { viewModel.logout(onLogoutClick) }
                         }) {
                             Icon(Icons.Default.ExitToApp, contentDescription = "تسجيل خروج", tint = Color.Red)
                         }
@@ -176,7 +176,7 @@ fun MainDashboardScreen(
                                 onClick = { performActionIfConnected(onNavigateToConstants) }
                             )
                         }
-                        
+
                         item {
                             DashboardCard(
                                 title = "إعدادات النظام",

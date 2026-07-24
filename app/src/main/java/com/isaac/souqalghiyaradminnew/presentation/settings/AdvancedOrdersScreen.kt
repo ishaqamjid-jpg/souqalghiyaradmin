@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.isaac.souqalghiyaradminnew.domain.model.Order
 import com.isaac.souqalghiyaradminnew.domain.model.OrderItem
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +38,7 @@ fun AdvancedOrdersScreen(
     val query by viewModel.searchQuery.collectAsState()
     val result by viewModel.searchResult.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val clientPhone by viewModel.clientPhone.collectAsState()
     val context = LocalContext.current
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -67,9 +70,9 @@ fun AdvancedOrdersScreen(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White, 
+                            focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFFE91E63), 
+                            focusedBorderColor = Color(0xFFE91E63),
                             unfocusedBorderColor = Color.Gray,
                             cursorColor = Color(0xFFE91E63)
                         )
@@ -78,7 +81,7 @@ fun AdvancedOrdersScreen(
                     Button(
                         onClick = { viewModel.searchOrderByNumber() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63)),
-                        modifier = Modifier.height(55.dp)
+                        modifier = Modifier.height(60.dp).padding(top = 6.dp)
                     ) {
                         Icon(Icons.Default.Search, contentDescription = "بحث", tint = Color.White)
                     }
@@ -89,9 +92,9 @@ fun AdvancedOrdersScreen(
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), color = Color(0xFFE91E63))
                 } else if (result != null) {
-                    // عرض نموذج تعديل الطلب والقطع
                     OrderEditForm(
                         data = result!!,
+                        clientPhone = clientPhone,
                         onSave = { updatedOrder, updatedItems ->
                             viewModel.updateOrderAndItems(
                                 updatedOrder,
@@ -103,7 +106,7 @@ fun AdvancedOrdersScreen(
                         onDelete = { orderId ->
                             viewModel.deleteOrder(
                                 orderId,
-                                onSuccess = { Toast.makeText(context, "تم حذف الطلب!", Toast.LENGTH_SHORT).show() }
+                                onSuccess = { Toast.makeText(context, "تم حذف الطلب والقطع بنجاح!", Toast.LENGTH_SHORT).show() }
                             )
                         }
                     )
@@ -115,16 +118,25 @@ fun AdvancedOrdersScreen(
     }
 }
 
-// 3. نموذج تفاصيل وتعديل الطلب والقطع
+// --- نموذج تفاصيل وتعديل الطلب ---
 @Composable
 fun OrderEditForm(
-    data: OrderWithItemsData, 
-    onSave: (Order, List<OrderItem>) -> Unit, 
+    data: OrderWithItemsData,
+    clientPhone: String,
+    onSave: (Order, List<OrderItem>) -> Unit,
     onDelete: (String) -> Unit
 ) {
     val order = data.order
-    
-    // تم استخدام remember(order.order_id) لحل مشكلة الخانات الفارغة!
+
+    // متغيرات الطلب (للقراءة فقط)
+    val readOnlyColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.LightGray, unfocusedTextColor = Color.LightGray,
+        focusedBorderColor = Color.DarkGray, unfocusedBorderColor = Color.DarkGray,
+        focusedLabelColor = Color.Gray, unfocusedLabelColor = Color.Gray,
+        disabledTextColor = Color.LightGray, disabledBorderColor = Color.DarkGray, disabledLabelColor = Color.Gray
+    )
+
+    // متغيرات الطلب القابلة للتعديل
     var brandName by remember(order.order_id) { mutableStateOf(order.brand_name) }
     var vehicleName by remember(order.order_id) { mutableStateOf(order.vehicle_name) }
     var vehicleModel by remember(order.order_id) { mutableStateOf(order.vehicle_model) }
@@ -140,14 +152,10 @@ fun OrderEditForm(
     // قائمة القطع القابلة للتعديل
     var itemsList by remember(order.order_id) { mutableStateOf(data.items) }
 
-    // ألوان مخصصة لجميع حقول الإدخال لضمان النص الأبيض والظهور الواضح
     val customTextFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        focusedBorderColor = Color(0xFFE91E63),
-        unfocusedBorderColor = Color.Gray,
-        focusedLabelColor = Color(0xFFE91E63),
-        unfocusedLabelColor = Color.Gray,
+        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+        focusedBorderColor = Color(0xFFE91E63), unfocusedBorderColor = Color.Gray,
+        focusedLabelColor = Color(0xFFE91E63), unfocusedLabelColor = Color.Gray,
         cursorColor = Color(0xFFE91E63)
     )
 
@@ -167,7 +175,24 @@ fun OrderEditForm(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("بيانات الطلب الأساسية:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            
+
+            OutlinedTextField(value = order.order_id, onValueChange = {}, readOnly = true, enabled = false, label = { Text("معرف الطلب (Order ID)") }, modifier = Modifier.fillMaxWidth(), colors = readOnlyColors)
+            OutlinedTextField(value = order.order_number.toString(), onValueChange = {}, readOnly = true, enabled = false, label = { Text("رقم الطلب (Order Number)") }, modifier = Modifier.fillMaxWidth(), colors = readOnlyColors)
+            // إضافة رقم هاتف العميل بناءً على طلبك
+            OutlinedTextField(value = clientPhone, onValueChange = {}, readOnly = true, enabled = false, label = { Text("رقم هاتف العميل") }, modifier = Modifier.fillMaxWidth(), colors = readOnlyColors)
+            OutlinedTextField(value = order.user_id, onValueChange = {}, readOnly = true, enabled = false, label = { Text("معرف المستخدم (User ID)") }, modifier = Modifier.fillMaxWidth(), colors = readOnlyColors)
+
+            val dateString = try {
+                order.created_at?.toDate()?.let { date ->
+                    SimpleDateFormat("yyyy/MM/dd hh:mm a", Locale.ENGLISH).format(date)
+                } ?: "غير محدد"
+            } catch (e: Exception) {
+                "غير محدد"
+            }
+            OutlinedTextField(value = dateString, onValueChange = {}, readOnly = true, enabled = false, label = { Text("تاريخ الإنشاء") }, modifier = Modifier.fillMaxWidth(), colors = readOnlyColors)
+
+            HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 8.dp))
+
             OutlinedTextField(value = brandName, onValueChange = { brandName = it }, label = { Text("الماركة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
             OutlinedTextField(value = vehicleName, onValueChange = { vehicleName = it }, label = { Text("المركبة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
             OutlinedTextField(value = vehicleModel, onValueChange = { vehicleModel = it }, label = { Text("الموديل") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors)
@@ -182,8 +207,8 @@ fun OrderEditForm(
         }
 
         // --- قسم بيانات القطع ---
-        Text("القطع المطلوبة:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        
+        Text("القطع المطلوبة (${itemsList.size} قطع):", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+
         itemsList.forEachIndexed { index, item ->
             Column(
                 modifier = Modifier
@@ -192,34 +217,70 @@ fun OrderEditForm(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("قطعة رقم ${index + 1}", color = Color(0xFFE91E63), fontWeight = FontWeight.Bold)
-                
+                Text("قطعة ${index + 1}", color = Color(0xFFE91E63), fontWeight = FontWeight.Bold)
+
                 OutlinedTextField(
-                    value = item.part_name, 
-                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(part_name = newValue) } }, 
-                    label = { Text("اسم القطعة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors
+                    value = item.item_id, onValueChange = {}, readOnly = true, enabled = false,
+                    label = { Text("معرف القطعة") }, modifier = Modifier.fillMaxWidth(), colors = readOnlyColors
                 )
                 OutlinedTextField(
-                    value = item.provider_name, 
-                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(provider_name = newValue) } }, 
+                    value = item.part_name,
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(part_name = newValue) } },
+                    label = { Text("اسم القطعة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors
+                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = item.quantity.toString(),
+                        onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(quantity = newValue.toIntOrNull() ?: 1) } },
+                        label = { Text("الكمية") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = customTextFieldColors
+                    )
+                    OutlinedTextField(
+                        value = item.quality_type,
+                        onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(quality_type = newValue) } },
+                        label = { Text("الجودة") }, modifier = Modifier.weight(1f), colors = customTextFieldColors
+                    )
+                }
+                OutlinedTextField(
+                    value = item.description,
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(description = newValue) } },
+                    label = { Text("وصف القطعة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors
+                )
+                OutlinedTextField(
+                    value = item.comments,
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(comments = newValue) } },
+                    label = { Text("ملاحظات العميل") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors
+                )
+
+                HorizontalDivider(color = Color.Gray, modifier = Modifier.padding(vertical = 4.dp))
+
+                OutlinedTextField(
+                    value = item.provider_name,
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(provider_name = newValue) } },
                     label = { Text("اسم الموفر") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors
                 )
                 OutlinedTextField(
-                    value = item.purchase_price.toString(), 
-                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(purchase_price = newValue.toDoubleOrNull() ?: 0.0) } }, 
-                    label = { Text("سعر الشراء") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = customTextFieldColors
+                    value = item.invoice_number,
+                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(invoice_number = newValue) } },
+                    label = { Text("رقم الفاتورة") }, modifier = Modifier.fillMaxWidth(), colors = customTextFieldColors
                 )
-                OutlinedTextField(
-                    value = item.selling_price.toString(), 
-                    onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(selling_price = newValue.toDoubleOrNull() ?: 0.0) } }, 
-                    label = { Text("سعر البيع") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = customTextFieldColors
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = item.purchase_price.toString(),
+                        onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(purchase_price = newValue.toDoubleOrNull() ?: 0.0) } },
+                        label = { Text("سعر الشراء") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = customTextFieldColors
+                    )
+                    OutlinedTextField(
+                        value = item.selling_price.toString(),
+                        onValueChange = { newValue -> itemsList = itemsList.toMutableList().apply { this[index] = item.copy(selling_price = newValue.toDoubleOrNull() ?: 0.0) } },
+                        label = { Text("سعر البيع") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = customTextFieldColors
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // --- أزرار الحفظ والحذف ---
+        // أزرار الحفظ والحذف الخاصة بهذا الطلب
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Button(
                 onClick = { onDelete(order.order_id) },
@@ -227,7 +288,7 @@ fun OrderEditForm(
             ) {
                 Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.White)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("حذف نهائياً")
+                Text("حذف")
             }
 
             Button(
@@ -249,7 +310,7 @@ fun OrderEditForm(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
-                Text("حفظ التعديلات")
+                Text("حفظ")
             }
         }
     }
