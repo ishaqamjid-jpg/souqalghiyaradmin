@@ -17,7 +17,6 @@ object AppModule {
     @Singleton
     fun provideFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
 
-    // تمت إضافة الـ AdminRepository هنا
     @Provides
     @Singleton
     fun provideAdminRepository(db: FirebaseFirestore): AdminRepository = AdminRepositoryImpl(db)
@@ -33,4 +32,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideConstantsRepository(db: FirebaseFirestore): ConstantsRepository = ConstantsRepositoryImpl(db)
+
+    // --- تمت إضافة مستودع الطلبات المتقدم هنا ---
+    @Provides
+    @Singleton
+    fun provideAdvancedOrdersRepository(db: FirebaseFirestore): AdvancedOrdersRepository = AdvancedOrdersRepositoryImpl(db)
 }
