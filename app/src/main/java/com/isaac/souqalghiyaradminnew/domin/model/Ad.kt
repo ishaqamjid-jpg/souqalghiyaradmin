@@ -14,6 +14,7 @@ data class Ad(
  var target_url: String? = null,
  var start_date: Timestamp? = null,
  var end_date: Timestamp? = null,
+var name: String = "",
  var priority: Int = 0,
 
  // إجبار الفايربيز على استخدام هذا الاسم عند الرفع (get) وعند الجلب (set)
