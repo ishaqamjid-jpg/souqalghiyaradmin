@@ -1,6 +1,7 @@
 package com.isaac.souqalghiyaradminnew.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import com.isaac.souqalghiyaradminnew.domain.model.Order
 import com.isaac.souqalghiyaradminnew.domain.model.OrderItem
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
@@ -18,7 +19,6 @@ class OrdersRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore
 ) : OrdersRepository {
 
-    // ... (دوال getPendingOrders, getWaitingOrders, getCompletedOrders, getOrdersByDateRange, getAllOrdersForReports, updateOrderItemAdminFields كما هي بدون تعديل) ...
     override fun getPendingOrders(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders").whereEqualTo("order_status", "pending").addSnapshotListener { snapshot, error ->
             if (error != null) { close(error); return@addSnapshotListener }
@@ -44,6 +44,30 @@ class OrdersRepositoryImpl @Inject constructor(
 
     override fun getWaitingOrders(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders").whereEqualTo("order_status", "waiting for approvel").addSnapshotListener { snapshot, error ->
+            if (error != null) { close(error); return@addSnapshotListener }
+            if (snapshot != null) {
+                val orderList = mutableListOf<OrderWithItems>()
+                CoroutineScope(Dispatchers.IO).launch {
+                    snapshot.documents.forEach { doc ->
+                        val order = doc.toObject(Order::class.java)?.copy(order_id = doc.id)
+                        if (order != null) {
+                            try {
+                                val itemsSnapshot = db.collection("orders").document(order.order_id).collection("items").get().await()
+                                val items = itemsSnapshot.documents.mapNotNull { it.toObject(OrderItem::class.java)?.copy(item_id = it.id) }
+                                orderList.add(OrderWithItems(order, items))
+                            } catch (e: Exception) { e.printStackTrace() }
+                        }
+                    }
+                    trySend(orderList.sortedByDescending { it.order.created_at.toString() }).isSuccess
+                }
+            }
+        }
+        awaitClose { subscription.remove() }
+    }
+
+    // الإضافة هنا: جلب الطلبات جاري التوصيل
+    override fun getGoingOrders(): Flow<List<OrderWithItems>> = callbackFlow {
+        val subscription = db.collection("orders").whereEqualTo("order_status", "going").addSnapshotListener { snapshot, error ->
             if (error != null) { close(error); return@addSnapshotListener }
             if (snapshot != null) {
                 val orderList = mutableListOf<OrderWithItems>()
@@ -154,7 +178,6 @@ class OrdersRepositoryImpl @Inject constructor(
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    // ------------- التعديل الجوهري للآدمن هنا -------------
     override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
         return try {
             // 1. تحديث حالة الطلب
@@ -193,8 +216,55 @@ class OrdersRepositoryImpl @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
+    
+    // الإضافة هنا: لإنهاء طلب "جاري التوصيل"
+    override suspend fun finalizeOrder(orderId: String, orderNumber: Long, userId: String, isSuccess: Boolean, notes: String, incrementRejection: Boolean): Result<Unit> {
+        return try {
+            val newStatus = if (isSuccess) "completed" else "canceled"
+            val updates = mutableMapOf<String, Any>("order_status" to newStatus)
+            if (!isSuccess && notes.isNotEmpty()) {
+                updates["approval_notes"] = notes 
+            }
+            
+            db.collection("orders").document(orderId).update(updates).await()
 
-    // ------------- جلب الطلبات غير المقروءة للآدمن -------------
+            // رفع عداد الرفض إذا طلب الآدمن ذلك عند الإلغاء
+            if (!isSuccess && incrementRejection && userId.isNotEmpty()) {
+                db.collection("users").document(userId).update(
+                    "number_of_rejections", FieldValue.increment(1.0)
+                ).await()
+            }
+
+            // مسح اشعار جاري التوصيل من الإدارة
+            deleteAdminAlarmByOrderNumber(orderNumber)
+
+            // إنشاء إشعار للعميل بالنتيجة
+            if (userId.isNotEmpty()) {
+                val userSnapshot = db.collection("users").document(userId).get().await()
+                val fcmToken = userSnapshot.getString("fcm_token") ?: ""
+
+                val title = if (isSuccess) "تم التوصيل" else "تم إلغاء الطلب"
+                val message = if (isSuccess) "تم توصيل طلبك رقم $orderNumber بنجاح." else "تم إلغاء طلبك رقم $orderNumber من قبل الإدارة."
+                
+                val userAlarmRef = db.collection("user_alarm").document()
+                userAlarmRef.set(hashMapOf(
+                    "alarm_id" to userAlarmRef.id,
+                    "date" to com.google.firebase.Timestamp.now(),
+                    "order_number" to orderNumber,
+                    "title" to title,
+                    "message" to message,
+                    "receiver_id" to userId,
+                    "fcm_token" to fcmToken,
+                    "isRead" to false
+                )).await()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override fun getUnreadOrders(status: String): Flow<List<OrderWithItems>> = callbackFlow {
         val titleFilter = if (status == "canceled") "طلب مرفوض" else "طلب مكتمل"
         val subscription = db.collection("admin_alarm")
@@ -202,7 +272,6 @@ class OrdersRepositoryImpl @Inject constructor(
             .addSnapshotListener { snapshot, error ->
                 if (error != null) { close(error); return@addSnapshotListener }
 
-                // استخراج أرقام الطلبات الفريدة من الإشعارات النشطة
                 val orderNumbers = snapshot?.documents?.mapNotNull { it.getLong("order_number") }?.distinct() ?: emptyList()
 
                 if (orderNumbers.isEmpty()) {
@@ -210,7 +279,6 @@ class OrdersRepositoryImpl @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                // الفايربيز يقبل بحد أقصى 10 عناصر في استعلام whereIn
                 val limitedNumbers = orderNumbers.take(10) 
 
                 CoroutineScope(Dispatchers.IO).launch {
