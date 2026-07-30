@@ -468,7 +468,10 @@ fun OrderExpandableCard(
                             AnimatedVisibility(visible = goingActionState == "") {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Button(
-                                        onClick = { viewModel.finalizeGoingOrder(order.order_id, order.order_number, order.user_id, true, "", false) },
+                                        onClick = {
+                                            // التعديل هنا: إضافة toLong() لتحويل الـ Int إلى Long
+                                            viewModel.finalizeGoingOrder(order.order_id, order.order_number.toLong(), order.user_id, true, "", false)
+                                        },
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                                         modifier = Modifier.weight(1f).height(45.dp)
                                     ) {
@@ -509,7 +512,8 @@ fun OrderExpandableCard(
                                                 if (cancelNotes.isBlank()) {
                                                     Toast.makeText(context, "الرجاء كتابة سبب الإلغاء", Toast.LENGTH_SHORT).show()
                                                 } else {
-                                                    viewModel.finalizeGoingOrder(order.order_id, order.order_number, order.user_id, false, cancelNotes, incrementRejection)
+                                                    // التعديل هنا أيضاً: إضافة toLong()
+                                                    viewModel.finalizeGoingOrder(order.order_id, order.order_number.toLong(), order.user_id, false, cancelNotes, incrementRejection)
                                                     goingActionState = ""
                                                 }
                                             },

@@ -27,13 +27,17 @@ class AdsViewModel @Inject constructor(
     private val allAds = repository.getAds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // دمج الإعلانات مع نص البحث، وتنفيذ الإيقاف التلقائي للإعلانات المنتهية
-    val filteredAds = combine(allAds, _searchQuery) { ads, query ->
-        
-        // 1. فحص الإعلانات المنتهية وإيقافها تلقائياً
-        checkAndDeactivateExpiredAds(ads)
+    init {
+        // فحص الإعلانات المنتهية يحدث فقط عند قدوم بيانات جديدة من السيرفر
+        viewModelScope.launch {
+            allAds.collect { ads ->
+                checkAndDeactivateExpiredAds(ads)
+            }
+        }
+    }
 
-        // 2. فلترة الإعلانات بناءً على اسم الإعلان (الشركة)
+    // دمج الإعلانات مع نص البحث
+    val filteredAds = combine(allAds, _searchQuery) { ads, query ->
         if (query.isBlank()) {
             ads
         } else {
@@ -49,19 +53,22 @@ class AdsViewModel @Inject constructor(
     private fun checkAndDeactivateExpiredAds(ads: List<Ad>) {
         val currentTimeSeconds = Timestamp.now().seconds
         ads.forEach { ad ->
-            if (ad.is_active && ad.end_date != null) {
-                // إذا كان تاريخ الانتهاء أصغر من الوقت الحالي (أي مضى وانتهى)
-                if (ad.end_date.seconds < currentTimeSeconds) {
-                    viewModelScope.launch {
-                        // تحديث الإعلان ليصبح غير نشط
-                        repository.updateAd(ad.copy(is_active = false))
+            // استخدام let الآمن لحل مشكلة الـ Smart Cast
+            if (ad.is_active) {
+                ad.end_date?.let { endDate ->
+                    // إذا كان تاريخ الانتهاء أصغر من الوقت الحالي (أي مضى وانتهى)
+                    if (endDate.seconds < currentTimeSeconds) {
+                        viewModelScope.launch {
+                            // تحديث الإعلان ليصبح غير نشط في قاعدة البيانات
+                            repository.updateAd(ad.copy(is_active = false))
+                        }
                     }
                 }
             }
         }
     }
 
-    // دالة لإضافة أو تعديل إعلان (بناءً على وجود ad_id)
+    // دالة لإضافة أو تعديل إعلان
     fun saveAd(ad: Ad) {
         viewModelScope.launch {
             if (ad.ad_id.isEmpty()) {
@@ -74,7 +81,7 @@ class AdsViewModel @Inject constructor(
         }
     }
 
-    // دالة لتفعيل أو إيقاف الإعلان السريع (تغيير الـ is_active) يدوياً
+    // دالة لتفعيل أو إيقاف الإعلان يدوياً
     fun toggleAdStatus(ad: Ad) {
         viewModelScope.launch {
             repository.updateAd(ad.copy(is_active = !ad.is_active))
