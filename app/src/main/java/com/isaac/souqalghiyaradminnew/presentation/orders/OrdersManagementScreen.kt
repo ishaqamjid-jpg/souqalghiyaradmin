@@ -42,7 +42,8 @@ fun OrdersManagementScreen(
     viewModel: OrdersViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("المعلقة", "قيد الموافقة", "المرفوضة", "المكتملة")
+    // تم إضافة "جاري التوصيل" هنا كقسم ثالث
+    val tabs = listOf("المعلقة", "قيد الموافقة", "جاري التوصيل", "المرفوضة", "المكتملة")
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
@@ -68,7 +69,7 @@ fun OrdersManagementScreen(
                             Tab(
                                 selected = selectedTab == index,
                                 onClick = { selectedTab = index },
-                                text = { Text(title, fontSize = 14.sp, fontWeight = if(selectedTab == index) FontWeight.Bold else FontWeight.Normal) },
+                                text = { Text(title, fontSize = 13.sp, fontWeight = if(selectedTab == index) FontWeight.Bold else FontWeight.Normal) },
                                 unselectedContentColor = Color.LightGray,
                                 selectedContentColor = Color.White
                             )
@@ -82,8 +83,9 @@ fun OrdersManagementScreen(
                 when (selectedTab) {
                     0 -> PendingOrdersSection(viewModel)
                     1 -> WaitingOrdersSection(viewModel)
-                    2 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders, viewModel.unreadCanceledOrders, viewModel.latestCanceledOrders)
-                    3 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders, viewModel.unreadCompletedOrders, viewModel.latestCompletedOrders)
+                    2 -> GoingOrdersSection(viewModel) // استدعاء واجهة جاري التوصيل
+                    3 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders, viewModel.unreadCanceledOrders, viewModel.latestCanceledOrders)
+                    4 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders, viewModel.unreadCompletedOrders, viewModel.latestCompletedOrders)
                 }
             }
         }
@@ -99,6 +101,13 @@ fun PendingOrdersSection(viewModel: OrdersViewModel) {
 @Composable
 fun WaitingOrdersSection(viewModel: OrdersViewModel) {
     val orders by viewModel.waitingOrders.collectAsState()
+    OrdersList(orders = orders, viewModel = viewModel, isEditable = false, showPdfExport = true)
+}
+
+// واجهة خاصة لعرض الطلبات التي جاري توصيلها
+@Composable
+fun GoingOrdersSection(viewModel: OrdersViewModel) {
+    val orders by viewModel.goingOrders.collectAsState()
     OrdersList(orders = orders, viewModel = viewModel, isEditable = false, showPdfExport = true)
 }
 
@@ -121,7 +130,6 @@ fun HistoricalOrdersSection(
     val latestOrders by latestOrdersFlow.collectAsState()
     val isLoading by viewModel.isLoadingHistorical.collectAsState()
 
-    // تشغيل الجلب التلقائي لأحدث 3 فواتير عند فتح الشاشة
     LaunchedEffect(status) {
         viewModel.fetchLatestOrders(status)
     }
@@ -272,6 +280,11 @@ fun OrderExpandableCard(
     var expanded by remember { mutableStateOf(false) }
     var deliveryFees by remember { mutableStateOf(order.delivery_fees.toString()) }
 
+    // متغيرات التعامل مع حالة "جاري التوصيل"
+    var goingActionState by remember { mutableStateOf("") }
+    var cancelNotes by remember { mutableStateOf("") }
+    var incrementRejection by remember { mutableStateOf(false) }
+
     val itemsPricingStates = remember {
         mutableStateMapOf<String, ItemAdminPricing>().apply {
             items.forEach { item ->
@@ -280,7 +293,6 @@ fun OrderExpandableCard(
         }
     }
 
-    // جلب رقم الهاتف للعميل
     val userPhones by viewModel.userPhones.collectAsState()
     val clientPhone = userPhones[order.user_id] ?: "جاري الجلب..."
 
@@ -319,14 +331,28 @@ fun OrderExpandableCard(
                     Text("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D), fontSize = 16.sp)
                     Text("الماركة: ${order.brand_name} | المصنع: ${order.manufacture}", color = Color.DarkGray, fontSize = 14.sp)
                     Text("الموقع: ${order.delivery_location}", color = Color.Gray, fontSize = 12.sp)
-
-                    // تم وضع رقم الهاتف الذي تم جلبه آلياً
                     Text("رقم الهاتف: $clientPhone", color = Color.Gray, fontSize = 12.sp)
 
+                    // تنسيق وتلوين حالة الطلب لتصبح واضحة
+                    val statusTextAr = when (order.order_status.trim().lowercase()) {
+                        "pending" -> "معلق قيد التسعير"
+                        "waiting for approval", "waiting for approvel" -> "بانتظار موافقة العميل"
+                        "going" -> "جاري التوصيل"
+                        "completed" -> "مكتمل"
+                        "canceled" -> "مرفوض / ملغى"
+                        else -> order.order_status
+                    }
+                    val statusColor = when (order.order_status.trim().lowercase()) {
+                        "canceled" -> Color.Red
+                        "pending" -> Color(0xFFFFB300)
+                        "going" -> Color(0xFF03A9F4) // أزرق سماوي
+                        else -> Color(0xFF4CAF50)
+                    }
+
                     Text(
-                        text = "الحالة: ${order.order_status}",
-                        color = if (order.order_status == "canceled") Color.Red else Color(0xFF4CAF50),
-                        fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp)
+                        text = "الحالة: $statusTextAr",
+                        color = statusColor,
+                        fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 4.dp)
                     )
                 }
                 Icon(imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null, tint = Color(0xFF0D1B6D))
@@ -429,6 +455,76 @@ fun OrderExpandableCard(
                                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("مشاركة PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+
+                        // --- إضافة الخيارات الخاصة بقسم "جاري التوصيل" فقط ---
+                        if (order.order_status.trim().lowercase() == "going") {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(color = Color.LightGray)
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            AnimatedVisibility(visible = goingActionState == "") {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = { viewModel.finalizeGoingOrder(order.order_id, order.order_number, order.user_id, true, "", false) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                        modifier = Modifier.weight(1f).height(45.dp)
+                                    ) {
+                                        Text("إنهاء بنجاح", fontWeight = FontWeight.Bold)
+                                    }
+                                    OutlinedButton(
+                                        onClick = { goingActionState = "cancel" },
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                                        modifier = Modifier.weight(1f).height(45.dp)
+                                    ) {
+                                        Text("إلغاء الطلب", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            AnimatedVisibility(visible = goingActionState == "cancel") {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedTextField(
+                                        value = cancelNotes,
+                                        onValueChange = { cancelNotes = it },
+                                        label = { Text("سبب الإلغاء") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Red, focusedLabelColor = Color.Red)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = incrementRejection,
+                                            onCheckedChange = { incrementRejection = it },
+                                            colors = CheckboxDefaults.colors(checkedColor = Color.Red)
+                                        )
+                                        Text("إضافة إلى عداد الرفض للعميل", fontSize = 14.sp)
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = {
+                                                if (cancelNotes.isBlank()) {
+                                                    Toast.makeText(context, "الرجاء كتابة سبب الإلغاء", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    viewModel.finalizeGoingOrder(order.order_id, order.order_number, order.user_id, false, cancelNotes, incrementRejection)
+                                                    goingActionState = ""
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                            modifier = Modifier.weight(1f).height(45.dp)
+                                        ) {
+                                            Text("تأكيد الإلغاء", fontWeight = FontWeight.Bold)
+                                        }
+                                        OutlinedButton(
+                                            onClick = { goingActionState = ""; cancelNotes = ""; incrementRejection = false },
+                                            modifier = Modifier.weight(1f).height(45.dp)
+                                        ) {
+                                            Text("تراجع", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                 }
                             }
                         }
