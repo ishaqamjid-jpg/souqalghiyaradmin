@@ -73,24 +73,48 @@ fun ClientUsersScreen(
         ) { padding ->
             Column(modifier = Modifier.padding(padding).fillMaxSize()) {
                 
-                // شريط البحث
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChange(it) },
+                // --- قسم البحث وإجمالي العملاء ---
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    placeholder = { Text("ابحث برقم الهاتف...", color = Color.Gray) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "بحث", tint = Color.Gray) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedBorderColor = Color(0xFF0D1B6D)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // شريط البحث
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { viewModel.onSearchQueryChange(it) },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("ابحث برقم الهاتف...", color = Color.Gray) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "بحث", tint = Color.Gray) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedBorderColor = Color(0xFF0D1B6D)
+                        )
                     )
-                )
+
+                    // مربع الإحصائيات (الإجمالي)
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1B6D)),
+                        elevation = CardDefaults.cardElevation(4.dp),
+                        modifier = Modifier.height(60.dp) // ليكون بنفس ارتفاع خانة البحث تقريباً
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp).fillMaxHeight(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text("الإجمالي", color = Color.LightGray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("${clients.size}", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                        }
+                    }
+                }
 
                 if (clients.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
