@@ -14,7 +14,9 @@ interface OrdersRepository {
     ): Result<Unit>
     fun getAllOrdersForReports(): Flow<List<OrderWithItems>>
     suspend fun deleteAdminAlarmByOrderNumber(orderNumber: Long): Result<Unit>
-    
+    fun getGoingOrders(): Flow<List<OrderWithItems>>
+suspend fun finalizeOrder(orderId: String, orderNumber: Long, userId: String, isSuccess: Boolean, notes: String, incrementRejection: Boolean): Result<Unit>
+
     // الدالة الجديدة المضافة هنا:
     fun getUnreadOrders(status: String): Flow<List<OrderWithItems>>
 }
