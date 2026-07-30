@@ -34,6 +34,10 @@ class OrdersViewModel @Inject constructor(
     val waitingOrders: StateFlow<List<OrderWithItems>> = repository.getWaitingOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // الإضافة هنا لجلب طلبات جاري التوصيل
+    val goingOrders: StateFlow<List<OrderWithItems>> = repository.getGoingOrders()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val unreadCanceledOrders: StateFlow<List<OrderWithItems>> = repository.getUnreadOrders("canceled")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -55,7 +59,6 @@ class OrdersViewModel @Inject constructor(
     private val _isLoadingHistorical = MutableStateFlow(false)
     val isLoadingHistorical: StateFlow<Boolean> = _isLoadingHistorical.asStateFlow()
 
-    // --- الإضافة الخاصة بجلب رقم هاتف العميل من جدول users ---
     private val _userPhones = MutableStateFlow<Map<String, String>>(emptyMap())
     val userPhones: StateFlow<Map<String, String>> = _userPhones.asStateFlow()
 
@@ -64,13 +67,11 @@ class OrdersViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val db = FirebaseFirestore.getInstance()
-                // أولاً: نبحث بداخل جدول users حيث user_id يطابق المعرف
                 val snapshot = db.collection("users").whereEqualTo("user_id", userId).get().await()
                 if (!snapshot.isEmpty) {
                     val phone = snapshot.documents.first().getString("phone_number") ?: "غير متوفر"
                     _userPhones.value = _userPhones.value.toMutableMap().apply { put(userId, phone) }
                 } else {
-                    // في حال كان الـ Document ID هو نفسه الـ user_id
                     val doc = db.collection("users").document(userId).get().await()
                     val phone = doc.getString("phone_number") ?: "غير متوفر"
                     _userPhones.value = _userPhones.value.toMutableMap().apply { put(userId, phone) }
@@ -81,7 +82,6 @@ class OrdersViewModel @Inject constructor(
             }
         }
     }
-    // -----------------------------------------------------------
 
     fun approveOrder(
         orderId: String,
@@ -106,6 +106,13 @@ class OrdersViewModel @Inject constructor(
     fun rejectOrder(orderId: String) {
         viewModelScope.launch {
             repository.updateOrderStatus(orderId, "canceled", 0.0)
+        }
+    }
+
+    // الإضافة هنا: لإنهاء طلب "جاري التوصيل"
+    fun finalizeGoingOrder(orderId: String, orderNumber: Long, userId: String, isSuccess: Boolean, notes: String, incrementRejection: Boolean) {
+        viewModelScope.launch {
+            repository.finalizeOrder(orderId, orderNumber, userId, isSuccess, notes, incrementRejection)
         }
     }
 
