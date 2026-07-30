@@ -16,8 +16,10 @@ import javax.inject.Inject
 
 data class ReportStats(
     val totalCompletedOrders: Int = 0,
-    val totalRevenue: Double = 0.0,
+    val totalCanceledOrders: Int = 0,
+    val totalTransportation: Double = 0.0,
     val totalCosts: Double = 0.0,
+    val totalRevenue: Double = 0.0,
     val netProfit: Double = 0.0
 )
 
@@ -38,21 +40,26 @@ class ReportsViewModel @Inject constructor(
 
     val hasSearched = MutableStateFlow(false)
 
-    // جلب جميع الطلبات فوراً لغرض الإحصائيات الشاملة والبحث
+    // جلب جميع الطلبات
     private val allOrders = repository.getAllOrdersForReports()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _filteredOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
     val filteredOrders: StateFlow<List<OrderWithItems>> = _filteredOrders
 
-    // الإحصائيات 
-    val stats: StateFlow<ReportStats> = allOrders.map { orders ->
+    // الإحصائيات (تتحدث بناءً على النتائج المفلترة فقط بعد الضغط على تحليل)
+    val stats: StateFlow<ReportStats> = _filteredOrders.map { orders ->
         val completedOrders = orders.filter { it.order.order_status.equals("completed", ignoreCase = true) }
+        val canceledOrders = orders.filter { it.order.order_status.equals("canceled", ignoreCase = true) }
+        
+        var transportation = 0.0
         var revenue = 0.0
         var costs = 0.0
         
         completedOrders.forEach { orderData ->
-            revenue += orderData.order.delivery_fees
+            transportation += orderData.order.delivery_fees
+            // الإيرادات من المنتجات والتوصيل معاً
+            revenue += orderData.order.delivery_fees 
             orderData.items.forEach { item ->
                 revenue += (item.selling_price * item.quantity)
                 costs += (item.purchase_price * item.quantity)
@@ -61,9 +68,11 @@ class ReportsViewModel @Inject constructor(
         
         ReportStats(
             totalCompletedOrders = completedOrders.size,
-            totalRevenue = revenue,
+            totalCanceledOrders = canceledOrders.size,
+            totalTransportation = transportation,
             totalCosts = costs,
-            netProfit = revenue - costs
+            totalRevenue = revenue,
+            netProfit = revenue - costs - transportation // الربح الصافي (بدون احتساب مبالغ التوصيل كربح للمتجر إن أردت)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ReportStats())
 
@@ -72,16 +81,20 @@ class ReportsViewModel @Inject constructor(
         
         var currentList = allOrders.value
 
+        // فلترة رقم الطلب
         if (orderNumber.value.isNotBlank()) {
             currentList = currentList.filter { it.order.order_number.toString().contains(orderNumber.value) }
         }
+        // فلترة نوع الموديل
         if (vehicleModel.value.isNotBlank()) {
             currentList = currentList.filter { it.order.vehicle_model.contains(vehicleModel.value, ignoreCase = true) }
         }
+        // فلترة حالة الطلب
         if (orderStatus.value.isNotBlank()) {
             currentList = currentList.filter { it.order.order_status.equals(orderStatus.value, ignoreCase = true) }
         }
         
+        // فلترة التاجر أو القطعة
         if (merchantName.value.isNotBlank() || partName.value.isNotBlank()) {
             currentList = currentList.filter { orderData ->
                 orderData.items.any { item ->
@@ -92,6 +105,7 @@ class ReportsViewModel @Inject constructor(
             }
         }
 
+        // فلترة التاريخ
         if (isDateFilterEnabled.value && fromDate.value.isNotBlank() && toDate.value.isNotBlank()) {
             try {
                 val format = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
