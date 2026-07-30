@@ -1,5 +1,7 @@
 package com.isaac.souqalghiyaradminnew.presentation.reports
 
+import android.app.DatePickerDialog
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -7,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -17,11 +20,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,19 +53,29 @@ fun ReportsScreen(
 
     val statusOptions = listOf(
         "" to "الكل (فارغ)",
-        "completed" to "مكتملة (completed)",
-        "canceled" to "مرفوض (canceled)",
-        "pending" to "معلقة (pending)",
+        "completed" to "مكتملة",
+        "canceled" to "مرفوضة",
+        "pending" to "معلقة",
+        "going" to "جاري التوصيل",
         "waiting for approvel" to "انتظار الموافقة"
     )
 
     val selectedStatusText = statusOptions.find { it.first == orderStatus }?.second ?: "الكل (فارغ)"
 
+    fun openDatePicker(onDateSelected: (String) -> Unit) {
+        val calendar = Calendar.getInstance()
+        DatePickerDialog(context, { _, year, month, dayOfMonth ->
+            // تحويل التاريخ إلى صيغة yyyy-MM-dd
+            val formattedDate = String.format(Locale.ENGLISH, "%04d-%02d-%02d", year, month + 1, dayOfMonth)
+            onDateSelected(formattedDate)
+        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("التقارير الشاملة", color = Color.White, fontWeight = FontWeight.Bold) },
+                    title = { Text("التقارير والإحصائيات", color = Color.White, fontWeight = FontWeight.Bold) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0D1B6D))
                 )
             },
@@ -68,23 +83,76 @@ fun ReportsScreen(
         ) { padding ->
             Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
 
+                // 1. قسم اختيار التاريخ والتحليل
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Switch(checked = isDateEnabled, onCheckedChange = { viewModel.isDateFilterEnabled.value = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF0D1B6D), checkedTrackColor = Color(0xFF0D1B6D).copy(alpha = 0.5f)))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("تفعيل فلتر التاريخ للتحليل", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                        }
+                        
+                        AnimatedVisibility(visible = isDateEnabled) {
+                            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { openDatePicker { viewModel.fromDate.value = it } }, modifier = Modifier.weight(1f)) {
+                                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF0D1B6D))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(if(fromDate.isEmpty()) "من تاريخ" else fromDate, fontSize = 12.sp, color = Color.DarkGray)
+                                }
+                                OutlinedButton(onClick = { openDatePicker { viewModel.toDate.value = it } }, modifier = Modifier.weight(1f)) {
+                                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF0D1B6D))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(if(toDate.isEmpty()) "إلى تاريخ" else toDate, fontSize = 12.sp, color = Color.DarkGray)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { viewModel.searchOrders() },
+                            modifier = Modifier.fillMaxWidth().height(45.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
+                        ) {
+                            Icon(Icons.Default.Search, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("تحليل وعرض الإحصائيات", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 2. المربعات الإحصائية الستة
                 if (isAdmin) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF2196F3), Modifier.weight(1f))
-                        StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFFFF9800), Modifier.weight(1f))
-                        StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF44336), Modifier.weight(1f))
-                        StatCard("الأرباح", "${stats.netProfit}", Color(0xFF4CAF50), Modifier.weight(1f))
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF4CAF50), Modifier.weight(1f))
+                            StatCard("المرفوضة", stats.totalCanceledOrders.toString(), Color(0xFFE53935), Modifier.weight(1f))
+                            StatCard("المواصلات", "${stats.totalTransportation}", Color(0xFF00ACC1), Modifier.weight(1f))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF57C00), Modifier.weight(1f))
+                            StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFF8E24AA), Modifier.weight(1f))
+                            StatCard("الربح", "${stats.netProfit}", Color(0xFF2E7D32), Modifier.weight(1f))
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider()
+                    HorizontalDivider(color = Color.LightGray)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                Text("فلاتر البحث:", fontWeight = FontWeight.Bold)
+                // 3. فلاتر البحث الأخرى
+                Text("فلاتر بحث إضافية:", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب (التسلسلي)") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
 
                     ExposedDropdownMenuBox(
                         expanded = expandedStatus,
@@ -118,52 +186,38 @@ fun ReportsScreen(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     OutlinedTextField(value = merchantName, onValueChange = { viewModel.merchantName.value = it }, label = { Text("اسم التاجر") }, modifier = Modifier.weight(1f), singleLine = true)
                     OutlinedTextField(value = partName, onValueChange = { viewModel.partName.value = it }, label = { Text("اسم القطعة") }, modifier = Modifier.weight(1f), singleLine = true)
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Switch(checked = isDateEnabled, onCheckedChange = { viewModel.isDateFilterEnabled.value = it })
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(value = fromDate, onValueChange = { viewModel.fromDate.value = it }, label = { Text("من (yyyy-MM-dd)") }, modifier = Modifier.weight(1f), enabled = isDateEnabled)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(value = toDate, onValueChange = { viewModel.toDate.value = it }, label = { Text("إلى (yyyy-MM-dd)") }, modifier = Modifier.weight(1f), enabled = isDateEnabled)
-                }
-
-                Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Button(
-                        onClick = { viewModel.searchOrders() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
-                    ) {
-                        Icon(Icons.Default.Search, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("بحث / عرض الكل")
-                    }
-
-                    Button(
-                        onClick = { ReportsPdfManager.generateFilteredReportPdf(context, filteredOrders) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
-                        enabled = hasSearched && filteredOrders.isNotEmpty()
-                    ) {
-                        Icon(Icons.Default.PictureAsPdf, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("تصدير PDF")
-                    }
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // زر تصدير PDF
+                Button(
+                    onClick = { ReportsPdfManager.generateFilteredReportPdf(context, filteredOrders) },
+                    modifier = Modifier.fillMaxWidth().height(45.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
+                    enabled = hasSearched && filteredOrders.isNotEmpty()
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("تصدير النتائج إلى PDF", fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // 4. النتائج
                 if (!hasSearched) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("قم بضبط الفلاتر واضغط على زر البحث لظهور التفاصيل الكلية", color = Color.Gray, fontSize = 14.sp)
+                        Text("قم بضبط الفلاتر واضغط على تحليل لعرض الإحصائيات", color = Color.Gray, fontSize = 14.sp)
                     }
                 } else if (filteredOrders.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("لا توجد طلبات تطابق معايير البحث", color = Color.Gray, fontSize = 14.sp)
+                        Text("لا توجد طلبات تطابق معايير التحليل", color = Color.Gray, fontSize = 14.sp)
                     }
                 } else {
-                    Text("نتائج البحث الشاملة (${filteredOrders.size} طلب):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    Text("سجل الطلبات (${filteredOrders.size} طلب):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyColumn(
@@ -207,6 +261,7 @@ fun FullOrderDetailsCard(
                     color = when(orderData.order.order_status.lowercase()) {
                         "completed" -> Color(0xFF4CAF50)
                         "canceled" -> Color.Red
+                        "going" -> Color(0xFF03A9F4)
                         else -> Color.DarkGray
                     }
                 )
@@ -265,19 +320,19 @@ fun FullOrderDetailsCard(
 @Composable
 fun StatCard(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
-        modifier = modifier.height(80.dp),
+        modifier = modifier.height(75.dp),
         colors = CardDefaults.cardColors(containerColor = color),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
+        shape = RoundedCornerShape(10.dp),
+        elevation = CardDefaults.cardElevation(3.dp)
     ) {
         Column(
-            modifier = Modifier.padding(8.dp).fillMaxSize(),
+            modifier = Modifier.padding(6.dp).fillMaxSize(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(title, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(value, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
