@@ -50,6 +50,10 @@ fun ReportsScreen(
     val isDateEnabled by viewModel.isDateFilterEnabled.collectAsState()
 
     var expandedStatus by remember { mutableStateOf(false) }
+    
+    // --- إضافة متغير للتحكم بالتابات ---
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("الإحصائيات", "التقارير وسجل الطلبات")
 
     val statusOptions = listOf(
         "" to "الكل (فارغ)",
@@ -65,7 +69,6 @@ fun ReportsScreen(
     fun openDatePicker(onDateSelected: (String) -> Unit) {
         val calendar = Calendar.getInstance()
         DatePickerDialog(context, { _, year, month, dayOfMonth ->
-            // تحويل التاريخ إلى صيغة yyyy-MM-dd
             val formattedDate = String.format(Locale.ENGLISH, "%04d-%02d-%02d", year, month + 1, dayOfMonth)
             onDateSelected(formattedDate)
         }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
@@ -81,151 +84,197 @@ fun ReportsScreen(
             },
             containerColor = Color(0xFFF5F5F5)
         ) { padding ->
-            Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
-
-                // 1. قسم اختيار التاريخ والتحليل
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(2.dp)
+            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+                
+                // ==================== شريط التابات (Tabs) ====================
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF0D1B6D)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Switch(checked = isDateEnabled, onCheckedChange = { viewModel.isDateFilterEnabled.value = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF0D1B6D), checkedTrackColor = Color(0xFF0D1B6D).copy(alpha = 0.5f)))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("تفعيل فلتر التاريخ للتحليل", fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                        }
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTabIndex == index,
+                            onClick = { selectedTabIndex = index },
+                            text = { Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+                        )
+                    }
+                }
+
+                // ==================== محتوى التابات ====================
+                Column(modifier = Modifier.padding(16.dp).fillMaxSize()) {
+                    
+                    if (selectedTabIndex == 0) {
+                        // ----------------- التاب الأول: الإحصائيات -----------------
                         
-                        AnimatedVisibility(visible = isDateEnabled) {
-                            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = { openDatePicker { viewModel.fromDate.value = it } }, modifier = Modifier.weight(1f)) {
-                                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF0D1B6D))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(if(fromDate.isEmpty()) "من تاريخ" else fromDate, fontSize = 12.sp, color = Color.DarkGray)
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(2.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                    Switch(checked = isDateEnabled, onCheckedChange = { viewModel.isDateFilterEnabled.value = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF0D1B6D), checkedTrackColor = Color(0xFF0D1B6D).copy(alpha = 0.5f)))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("تفعيل فلتر التاريخ للتحليل", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                                 }
-                                OutlinedButton(onClick = { openDatePicker { viewModel.toDate.value = it } }, modifier = Modifier.weight(1f)) {
-                                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF0D1B6D))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(if(toDate.isEmpty()) "إلى تاريخ" else toDate, fontSize = 12.sp, color = Color.DarkGray)
+                                
+                                AnimatedVisibility(visible = isDateEnabled) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(onClick = { openDatePicker { viewModel.fromDate.value = it } }, modifier = Modifier.weight(1f)) {
+                                            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF0D1B6D))
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(if(fromDate.isEmpty()) "من تاريخ" else fromDate, fontSize = 12.sp, color = Color.DarkGray)
+                                        }
+                                        OutlinedButton(onClick = { openDatePicker { viewModel.toDate.value = it } }, modifier = Modifier.weight(1f)) {
+                                            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF0D1B6D))
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(if(toDate.isEmpty()) "إلى تاريخ" else toDate, fontSize = 12.sp, color = Color.DarkGray)
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                // زر التحليل الخاص بالإحصائيات
+                                Button(
+                                    onClick = { viewModel.searchOrders() },
+                                    modifier = Modifier.fillMaxWidth().height(45.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
+                                ) {
+                                    Icon(Icons.Default.Search, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("تحليل وعرض الإحصائيات", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        if (isAdmin) {
+                            Text("النتائج الإحصائية:", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF4CAF50), Modifier.weight(1f))
+                                    StatCard("المرفوضة", stats.totalCanceledOrders.toString(), Color(0xFFE53935), Modifier.weight(1f))
+                                    StatCard("المواصلات", "${stats.totalTransportation}", Color(0xFF00ACC1), Modifier.weight(1f))
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF57C00), Modifier.weight(1f))
+                                    StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFF8E24AA), Modifier.weight(1f))
+                                    StatCard("الربح", "${stats.netProfit}", Color(0xFF2E7D32), Modifier.weight(1f))
+                                }
+                            }
+                        }
+
+                    } else {
+                        // ----------------- التاب الثاني: التقارير وسجل الطلبات -----------------
+                        
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(2.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("فلاتر البحث الدقيق:", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
+
+                                    ExposedDropdownMenuBox(
+                                        expanded = expandedStatus,
+                                        onExpandedChange = { expandedStatus = !expandedStatus },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = selectedStatusText,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("حالة الطلب") },
+                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatus) },
+                                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                            singleLine = true
+                                        )
+                                        ExposedDropdownMenu(
+                                            expanded = expandedStatus,
+                                            onDismissRequest = { expandedStatus = false },
+                                            modifier = Modifier.background(Color.White)
+                                        ) {
+                                            statusOptions.forEach { option ->
+                                                DropdownMenuItem(
+                                                    text = { Text(option.second, color = Color.Black) },
+                                                    onClick = {
+                                                        viewModel.orderStatus.value = option.first
+                                                        expandedStatus = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                                    OutlinedTextField(value = merchantName, onValueChange = { viewModel.merchantName.value = it }, label = { Text("اسم التاجر") }, modifier = Modifier.weight(1f), singleLine = true)
+                                    OutlinedTextField(value = partName, onValueChange = { viewModel.partName.value = it }, label = { Text("اسم القطعة") }, modifier = Modifier.weight(1f), singleLine = true)
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                // زر البحث المستقل الخاص بالسجل
+                                Button(
+                                    onClick = { viewModel.searchOrders() },
+                                    modifier = Modifier.fillMaxWidth().height(45.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
+                                ) {
+                                    Icon(Icons.Default.Search, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("بحث في السجل", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
+                        
+                        // زر تصدير PDF
                         Button(
-                            onClick = { viewModel.searchOrders() },
+                            onClick = { ReportsPdfManager.generateFilteredReportPdf(context, filteredOrders) },
                             modifier = Modifier.fillMaxWidth().height(45.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
+                            enabled = hasSearched && filteredOrders.isNotEmpty()
                         ) {
-                            Icon(Icons.Default.Search, contentDescription = null)
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("تحليل وعرض الإحصائيات", fontWeight = FontWeight.Bold)
+                            Text("تصدير النتائج إلى PDF", fontWeight = FontWeight.Bold)
                         }
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                // 2. المربعات الإحصائية الستة
-                if (isAdmin) {
-                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF4CAF50), Modifier.weight(1f))
-                            StatCard("المرفوضة", stats.totalCanceledOrders.toString(), Color(0xFFE53935), Modifier.weight(1f))
-                            StatCard("المواصلات", "${stats.totalTransportation}", Color(0xFF00ACC1), Modifier.weight(1f))
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF57C00), Modifier.weight(1f))
-                            StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFF8E24AA), Modifier.weight(1f))
-                            StatCard("الربح", "${stats.netProfit}", Color(0xFF2E7D32), Modifier.weight(1f))
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = Color.LightGray)
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                // 3. فلاتر البحث الأخرى
-                Text("فلاتر بحث إضافية:", fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
-
-                    ExposedDropdownMenuBox(
-                        expanded = expandedStatus,
-                        onExpandedChange = { expandedStatus = !expandedStatus },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = selectedStatusText,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("حالة الطلب") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStatus) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
-                            singleLine = true
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expandedStatus,
-                            onDismissRequest = { expandedStatus = false },
-                            modifier = Modifier.background(Color.White)
-                        ) {
-                            statusOptions.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option.second, color = Color.Black) },
-                                    onClick = {
-                                        viewModel.orderStatus.value = option.first
-                                        expandedStatus = false
-                                    }
-                                )
+                        // عرض النتائج في الأسفل
+                        if (!hasSearched) {
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Text("قم بضبط الفلاتر واضغط على بحث لعرض السجل", color = Color.Gray, fontSize = 14.sp)
                             }
-                        }
-                    }
-                }
+                        } else if (filteredOrders.isEmpty()) {
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Text("لا توجد طلبات تطابق معايير البحث", color = Color.Gray, fontSize = 14.sp)
+                            }
+                        } else {
+                            Text("سجل الطلبات المطابقة (${filteredOrders.size}):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    OutlinedTextField(value = merchantName, onValueChange = { viewModel.merchantName.value = it }, label = { Text("اسم التاجر") }, modifier = Modifier.weight(1f), singleLine = true)
-                    OutlinedTextField(value = partName, onValueChange = { viewModel.partName.value = it }, label = { Text("اسم القطعة") }, modifier = Modifier.weight(1f), singleLine = true)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // زر تصدير PDF
-                Button(
-                    onClick = { ReportsPdfManager.generateFilteredReportPdf(context, filteredOrders) },
-                    modifier = Modifier.fillMaxWidth().height(45.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
-                    enabled = hasSearched && filteredOrders.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("تصدير النتائج إلى PDF", fontWeight = FontWeight.Bold)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 4. النتائج
-                if (!hasSearched) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("قم بضبط الفلاتر واضغط على تحليل لعرض الإحصائيات", color = Color.Gray, fontSize = 14.sp)
-                    }
-                } else if (filteredOrders.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("لا توجد طلبات تطابق معايير التحليل", color = Color.Gray, fontSize = 14.sp)
-                    }
-                } else {
-                    Text("سجل الطلبات (${filteredOrders.size} طلب):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(filteredOrders) { orderData ->
-                            FullOrderDetailsCard(orderData = orderData, isAdmin = isAdmin)
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(filteredOrders) { orderData ->
+                                    FullOrderDetailsCard(orderData = orderData, isAdmin = isAdmin)
+                                }
+                            }
                         }
                     }
                 }
@@ -252,7 +301,6 @@ fun FullOrderDetailsCard(
         elevation = CardDefaults.cardElevation(3.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // بيانات الطلب الأساسية
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(text = "رقم الطلب: ${orderData.order.order_number}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
                 Text(
@@ -277,7 +325,6 @@ fun FullOrderDetailsCard(
 
             Text(text = "رسوم التوصيل: ${orderData.order.delivery_fees} ر.ي", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
 
-            // -------------- الإضافة الخاصة بالملاحظات ----------------
             if (orderData.order.order_status.equals("completed", ignoreCase = true) && orderData.order.approval_notes.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(text = "ملاحظات الموافقة: ${orderData.order.approval_notes}", fontSize = 14.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Medium)
@@ -285,7 +332,6 @@ fun FullOrderDetailsCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(text = "سبب الرفض: ${orderData.order.disapproval_notes}", fontSize = 14.sp, color = Color.Red, fontWeight = FontWeight.Medium)
             }
-            // ----------------------------------------------------
 
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Color.LightGray)
@@ -293,7 +339,6 @@ fun FullOrderDetailsCard(
             Text(text = "القطع المطلوبة (${orderData.items.size}):", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.DarkGray)
             Spacer(modifier = Modifier.height(4.dp))
 
-            // بيانات القطع الفرعية
             orderData.items.forEach { item ->
                 Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(Color(0xFFF9F9F9), RoundedCornerShape(8.dp)).padding(8.dp)) {
                     Text(text = "اسم القطعة: ${item.part_name}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
