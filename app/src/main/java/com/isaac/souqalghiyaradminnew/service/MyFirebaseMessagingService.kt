@@ -30,30 +30,37 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val title = remoteMessage.data["title"] ?: remoteMessage.notification?.title ?: "إشعار جديد"
         val message = remoteMessage.data["message"] ?: remoteMessage.notification?.body ?: "لديك تنبيه جديد من النظام"
 
-        showNotification(title, message)
+        // التعديل هنا: استخراج رقم الطلب من الـ Payload
+        val orderNumber = remoteMessage.data["order_number"] ?: ""
+
+        showNotification(title, message, orderNumber)
     }
 
-    private fun showNotification(title: String, message: String) {
+    // التعديل هنا: استقبال orderNumber كـ Parameter
+    private fun showNotification(title: String, message: String, orderNumber: String) {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            // التعديل هنا: تمرير رقم الطلب للـ Activity
+            putExtra("order_number", orderNumber)
         }
 
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            System.currentTimeMillis().toInt(), // لضمان عدم استبدال الإشعارات المتعددة
             intent,
-            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE // استخدام UPDATE_CURRENT
         )
 
         val channelId = "admin_notifications_channel"
 
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
+            // ⚠️ تأكد أن الأيقونة مفرغة ومناسبة للإشعارات
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(message)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_MAX) // تعديل الأولوية للأقصى لضمان الظهور
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
