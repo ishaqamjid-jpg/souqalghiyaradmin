@@ -33,7 +33,7 @@ import java.util.Locale
 @Composable
 fun ReportsScreen(
     viewModel: ReportsViewModel = hiltViewModel(),
-    isAdmin: Boolean = true 
+    isAdmin: Boolean = true
 ) {
     val stats by viewModel.stats.collectAsState()
     val filteredOrders by viewModel.filteredOrders.collectAsState()
@@ -50,8 +50,8 @@ fun ReportsScreen(
     val isDateEnabled by viewModel.isDateFilterEnabled.collectAsState()
 
     var expandedStatus by remember { mutableStateOf(false) }
-    
-    // --- إضافة متغير للتحكم بالتابات ---
+
+    // --- التحكم بالتابات ---
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("الإحصائيات", "التقارير وسجل الطلبات")
 
@@ -78,35 +78,42 @@ fun ReportsScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("التقارير والإحصائيات", color = Color.White, fontWeight = FontWeight.Bold) },
+                    title = {
+                        Text(
+                            if (isAdmin) "التقارير والإحصائيات" else "التقارير وسجل الطلبات",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0D1B6D))
                 )
             },
             containerColor = Color(0xFFF5F5F5)
         ) { padding ->
             Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-                
-                // ==================== شريط التابات (Tabs) ====================
-                TabRow(
-                    selectedTabIndex = selectedTabIndex,
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF0D1B6D)
-                ) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTabIndex == index,
-                            onClick = { selectedTabIndex = index },
-                            text = { Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
-                        )
+
+                // ==================== شريط التابات (يظهر للأدمن فقط) ====================
+                if (isAdmin) {
+                    TabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        containerColor = Color.White,
+                        contentColor = Color(0xFF0D1B6D)
+                    ) {
+                        tabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTabIndex == index,
+                                onClick = { selectedTabIndex = index },
+                                text = { Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+                            )
+                        }
                     }
                 }
 
                 // ==================== محتوى التابات ====================
                 Column(modifier = Modifier.padding(16.dp).fillMaxSize()) {
-                    
-                    if (selectedTabIndex == 0) {
-                        // ----------------- التاب الأول: الإحصائيات -----------------
-                        
+
+                    if (isAdmin && selectedTabIndex == 0) {
+                        // ----------------- التاب الأول: الإحصائيات (للأدمن فقط) -----------------
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
@@ -119,7 +126,7 @@ fun ReportsScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("تفعيل فلتر التاريخ للتحليل", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                                 }
-                                
+
                                 AnimatedVisibility(visible = isDateEnabled) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         OutlinedButton(onClick = { openDatePicker { viewModel.fromDate.value = it } }, modifier = Modifier.weight(1f)) {
@@ -136,8 +143,7 @@ fun ReportsScreen(
                                 }
 
                                 Spacer(modifier = Modifier.height(12.dp))
-                                
-                                // زر التحليل الخاص بالإحصائيات
+
                                 Button(
                                     onClick = { viewModel.searchOrders() },
                                     modifier = Modifier.fillMaxWidth().height(45.dp),
@@ -152,27 +158,25 @@ fun ReportsScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        if (isAdmin) {
-                            Text("النتائج الإحصائية:", fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF4CAF50), Modifier.weight(1f))
-                                    StatCard("المرفوضة", stats.totalCanceledOrders.toString(), Color(0xFFE53935), Modifier.weight(1f))
-                                    StatCard("المواصلات", "${stats.totalTransportation}", Color(0xFF00ACC1), Modifier.weight(1f))
-                                }
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF57C00), Modifier.weight(1f))
-                                    StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFF8E24AA), Modifier.weight(1f))
-                                    StatCard("الربح", "${stats.netProfit}", Color(0xFF2E7D32), Modifier.weight(1f))
-                                }
+                        Text("النتائج الإحصائية:", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF4CAF50), Modifier.weight(1f))
+                                StatCard("المرفوضة", stats.totalCanceledOrders.toString(), Color(0xFFE53935), Modifier.weight(1f))
+                                StatCard("المواصلات", "${stats.totalTransportation}", Color(0xFF00ACC1), Modifier.weight(1f))
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF57C00), Modifier.weight(1f))
+                                StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFF8E24AA), Modifier.weight(1f))
+                                StatCard("الربح", "${stats.netProfit}", Color(0xFF2E7D32), Modifier.weight(1f))
                             }
                         }
 
                     } else {
-                        // ----------------- التاب الثاني: التقارير وسجل الطلبات -----------------
-                        
+                        // ----------------- التاب الثاني / الشاشة للمستخدم العادي: التقارير وسجل الطلبات -----------------
+
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
@@ -224,8 +228,7 @@ fun ReportsScreen(
                                 }
 
                                 Spacer(modifier = Modifier.height(12.dp))
-                                
-                                // زر البحث المستقل الخاص بالسجل
+
                                 Button(
                                     onClick = { viewModel.searchOrders() },
                                     modifier = Modifier.fillMaxWidth().height(45.dp),
@@ -239,7 +242,7 @@ fun ReportsScreen(
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
-                        
+
                         // زر تصدير PDF
                         Button(
                             onClick = { ReportsPdfManager.generateFilteredReportPdf(context, filteredOrders) },
@@ -304,8 +307,8 @@ fun FullOrderDetailsCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(text = "رقم الطلب: ${orderData.order.order_number}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D))
                 Text(
-                    text = "الحالة: ${orderData.order.order_status}", 
-                    fontWeight = FontWeight.Bold, 
+                    text = "الحالة: ${orderData.order.order_status}",
+                    fontWeight = FontWeight.Bold,
                     color = when(orderData.order.order_status.lowercase()) {
                         "completed" -> Color(0xFF4CAF50)
                         "canceled" -> Color.Red
