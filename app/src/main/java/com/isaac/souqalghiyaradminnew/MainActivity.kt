@@ -68,6 +68,14 @@ class MainActivity : ComponentActivity() {
 
         // تحديث التوكن في Firestore إذا كان مسجلاً للدخول
         if (isLoggedIn && savedAdminId.isNotEmpty()) {
+            // 🌟 الاشتراك المباشر في الإشعارات عبر الـ Topic 🌟
+            FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        Log.d("FCM", "تم الاشتراك في إشعارات الإدارة بنجاح")
+                    }
+                }
+
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val token = task.result
@@ -124,6 +132,9 @@ class MainActivity : ComponentActivity() {
                                         FirebaseFirestore.getInstance().collection("UserEmp").document(currentSessionId)
                                             .update("fcm_token", "")
                                     }
+                                    // إلغاء الاشتراك عند الخروج
+                                    FirebaseMessaging.getInstance().unsubscribeFromTopic("admin_notifications")
+                                    
                                     sharedPref.edit().clear().apply()
                                     currentSessionId = ""
                                     currentSessionName = ""
