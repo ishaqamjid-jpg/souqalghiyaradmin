@@ -34,7 +34,6 @@ class OrdersViewModel @Inject constructor(
     val waitingOrders: StateFlow<List<OrderWithItems>> = repository.getWaitingOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // الإضافة هنا لجلب طلبات جاري التوصيل
     val goingOrders: StateFlow<List<OrderWithItems>> = repository.getGoingOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -109,7 +108,6 @@ class OrdersViewModel @Inject constructor(
         }
     }
 
-    // الإضافة هنا: لإنهاء طلب "جاري التوصيل"
     fun finalizeGoingOrder(orderId: String, orderNumber: Long, userId: String, isSuccess: Boolean, notes: String, incrementRejection: Boolean) {
         viewModelScope.launch {
             repository.finalizeOrder(orderId, orderNumber, userId, isSuccess, notes, incrementRejection)
