@@ -335,7 +335,7 @@ fun OrderExpandableCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     
                     Text("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D), fontSize = 15.sp)
-                    Text("الماركة: ${order.brand_name} | المصنع: ${order.manufacture}", color = Color.DarkGray, fontSize = 14.sp)
+                    Text("الماركة: ${order.brand_name} | مكان التصنيع: ${order.manufacture}", color = Color.DarkGray, fontSize = 14.sp)
                     Text("الموقع: ${order.delivery_location}", color = Color.Gray, fontSize = 12.sp)
                     Text("رقم الهاتف: $clientPhone", color = Color.Gray, fontSize = 12.sp)
 
