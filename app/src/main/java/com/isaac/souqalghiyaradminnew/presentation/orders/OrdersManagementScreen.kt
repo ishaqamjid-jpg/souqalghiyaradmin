@@ -42,7 +42,6 @@ fun OrdersManagementScreen(
     viewModel: OrdersViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    // تم إضافة "جاري التوصيل" هنا كقسم ثالث
     val tabs = listOf("المعلقة", "قيد الموافقة", "جاري التوصيل", "المرفوضة", "المكتملة")
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -83,7 +82,7 @@ fun OrdersManagementScreen(
                 when (selectedTab) {
                     0 -> PendingOrdersSection(viewModel)
                     1 -> WaitingOrdersSection(viewModel)
-                    2 -> GoingOrdersSection(viewModel) // استدعاء واجهة جاري التوصيل
+                    2 -> GoingOrdersSection(viewModel)
                     3 -> HistoricalOrdersSection(viewModel, "canceled", viewModel.canceledOrders, viewModel.unreadCanceledOrders, viewModel.latestCanceledOrders)
                     4 -> HistoricalOrdersSection(viewModel, "completed", viewModel.completedOrders, viewModel.unreadCompletedOrders, viewModel.latestCompletedOrders)
                 }
@@ -104,7 +103,6 @@ fun WaitingOrdersSection(viewModel: OrdersViewModel) {
     OrdersList(orders = orders, viewModel = viewModel, isEditable = false, showPdfExport = true)
 }
 
-// واجهة خاصة لعرض الطلبات التي جاري توصيلها
 @Composable
 fun GoingOrdersSection(viewModel: OrdersViewModel) {
     val orders by viewModel.goingOrders.collectAsState()
@@ -280,7 +278,6 @@ fun OrderExpandableCard(
     var expanded by remember { mutableStateOf(false) }
     var deliveryFees by remember { mutableStateOf(order.delivery_fees.toString()) }
 
-    // متغيرات التعامل مع حالة "جاري التوصيل"
     var goingActionState by remember { mutableStateOf("") }
     var cancelNotes by remember { mutableStateOf("") }
     var incrementRejection by remember { mutableStateOf(false) }
@@ -328,12 +325,20 @@ fun OrderExpandableCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D), fontSize = 16.sp)
+                    // الإضافة الجديدة: إظهار رقم الطلب بشكل بارز في الأعلى
+                    Text(
+                        text = "طلب رقم: #${order.order_number}",
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFFD32F2F),
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Text("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D), fontSize = 15.sp)
                     Text("الماركة: ${order.brand_name} | المصنع: ${order.manufacture}", color = Color.DarkGray, fontSize = 14.sp)
                     Text("الموقع: ${order.delivery_location}", color = Color.Gray, fontSize = 12.sp)
                     Text("رقم الهاتف: $clientPhone", color = Color.Gray, fontSize = 12.sp)
 
-                    // تنسيق وتلوين حالة الطلب لتصبح واضحة
                     val statusTextAr = when (order.order_status.trim().lowercase()) {
                         "pending" -> "معلق قيد التسعير"
                         "waiting for approval", "waiting for approvel" -> "بانتظار موافقة العميل"
@@ -345,7 +350,7 @@ fun OrderExpandableCard(
                     val statusColor = when (order.order_status.trim().lowercase()) {
                         "canceled" -> Color.Red
                         "pending" -> Color(0xFFFFB300)
-                        "going" -> Color(0xFF03A9F4) // أزرق سماوي
+                        "going" -> Color(0xFF03A9F4)
                         else -> Color(0xFF4CAF50)
                     }
 
@@ -459,7 +464,6 @@ fun OrderExpandableCard(
                             }
                         }
 
-                        // --- إضافة الخيارات الخاصة بقسم "جاري التوصيل" فقط ---
                         if (order.order_status.trim().lowercase() == "going") {
                             Spacer(modifier = Modifier.height(16.dp))
                             HorizontalDivider(color = Color.LightGray)
@@ -469,7 +473,6 @@ fun OrderExpandableCard(
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Button(
                                         onClick = {
-                                            // التعديل هنا: إضافة toLong() لتحويل الـ Int إلى Long
                                             viewModel.finalizeGoingOrder(order.order_id, order.order_number.toLong(), order.user_id, true, "", false)
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
@@ -512,7 +515,6 @@ fun OrderExpandableCard(
                                                 if (cancelNotes.isBlank()) {
                                                     Toast.makeText(context, "الرجاء كتابة سبب الإلغاء", Toast.LENGTH_SHORT).show()
                                                 } else {
-                                                    // التعديل هنا أيضاً: إضافة toLong()
                                                     viewModel.finalizeGoingOrder(order.order_id, order.order_number.toLong(), order.user_id, false, cancelNotes, incrementRejection)
                                                     goingActionState = ""
                                                 }
