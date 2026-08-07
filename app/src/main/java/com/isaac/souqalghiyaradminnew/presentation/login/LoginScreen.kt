@@ -50,7 +50,8 @@ fun LoginScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Color(0xFF070D2B), Color(0xFF15235B))))
+                // تدرج لوني احترافي وفخم يليق بلوحة التحكم
+                .background(Brush.verticalGradient(listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364))))
         ) {
             IconButton(
                 onClick = { showHelpDialog = true },
@@ -60,44 +61,46 @@ fun LoginScreen(
             }
 
             Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 30.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // الشعار بتصميم دائري بارز
                 Surface(
                     modifier = Modifier
-                        .size(130.dp)
+                        .size(140.dp)
                         .shadow(15.dp, CircleShape),
                     shape = CircleShape,
-                    color = Color.White
+                    color = Color.White // خلفية بيضاء لتبرز الشعار
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.logo_admin), 
+                        painter = painterResource(id = R.drawable.logo_admin),
                         contentDescription = "شعار تطبيق الإدارة",
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(12.dp)
+                            .padding(16.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Fit
                     )
                 }
-                Spacer(Modifier.height(24.dp))
-                
+
+                Spacer(Modifier.height(28.dp))
+
                 Text(
-                    text = "لوحة الإدارة - سوق الغيار", 
-                    fontSize = 26.sp, 
-                    fontWeight = FontWeight.ExtraBold, 
+                    text = "إدارة سوق الغيار",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Color.White
                 )
-                
+
                 Spacer(Modifier.height(8.dp))
-                
+
                 Text(
-                    text = "سجل الدخول لإدارة التطبيق", 
-                    fontSize = 14.sp, 
+                    text = "سجل الدخول للمتابعة إلى لوحة التحكم",
+                    fontSize = 14.sp,
                     color = Color.White.copy(alpha = 0.7f)
                 )
-                
+
                 Spacer(Modifier.height(40.dp))
 
                 OutlinedTextField(
@@ -123,7 +126,7 @@ fun LoginScreen(
                     )
                 )
 
-                Spacer(Modifier.height(15.dp))
+                Spacer(Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = password,
@@ -156,7 +159,7 @@ fun LoginScreen(
                     )
                 )
 
-                Spacer(Modifier.height(15.dp))
+                Spacer(Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable { viewModel.onRememberMeChange(!rememberMe) },
@@ -174,14 +177,14 @@ fun LoginScreen(
                     Text("تذكرني في المرة القادمة", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(28.dp))
 
                 Button(
                     onClick = { viewModel.login { id, name, permissions -> navigateToDashboard(id, name, permissions) } },
                     modifier = Modifier.fillMaxWidth().height(55.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White, 
+                        containerColor = Color.White,
                         contentColor = Color(0xFF0D1B6D)
                     ),
                     enabled = !uiState.isLoading
@@ -196,9 +199,9 @@ fun LoginScreen(
                 uiState.error?.let {
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = it, 
-                        color = Color(0xFFFF5252), 
-                        modifier = Modifier.padding(top = 10.dp), 
+                        text = it,
+                        color = Color(0xFFFF5252),
+                        modifier = Modifier.padding(top = 10.dp),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
@@ -209,11 +212,11 @@ fun LoginScreen(
         if (showHelpDialog) {
             AlertDialog(
                 onDismissRequest = { showHelpDialog = false },
-                title = { Text("تسجيل الدخول", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D)) },
-                text = { Text("قم بتسجيل الدخول باستخدام رقم الهاتف وكلمة المرور المسجلة مسبقاً للموظفين في قاعدة البيانات.") },
+                title = { Text("مساعدة تسجيل الدخول", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D)) },
+                text = { Text("قم بتسجيل الدخول باستخدام رقم الهاتف وكلمة المرور المسجلة مسبقاً للموظفين في قاعدة البيانات الخاصة بالشركة.") },
                 confirmButton = {
-                    TextButton(onClick = { showHelpDialog = false }) { 
-                        Text("حسناً", color = Color(0xFF0D1B6D), fontWeight = FontWeight.Bold) 
+                    TextButton(onClick = { showHelpDialog = false }) {
+                        Text("حسناً", color = Color(0xFF0D1B6D), fontWeight = FontWeight.Bold)
                     }
                 },
                 containerColor = Color.White

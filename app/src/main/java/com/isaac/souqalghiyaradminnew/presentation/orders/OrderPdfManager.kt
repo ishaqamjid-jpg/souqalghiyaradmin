@@ -109,7 +109,7 @@ object OrderPdfManager {
         startY += 30f
         canvas.drawText("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", pageInfo.pageWidth - 40f, startY, normalPaint)
         startY += 25f
-        canvas.drawText("الماركة: ${order.brand_name} | الصنع: ${order.manufacture}", pageInfo.pageWidth - 40f, startY, normalPaint)
+        canvas.drawText("الماركة: ${order.brand_name} | مكان التصنيع: ${order.manufacture}", pageInfo.pageWidth - 40f, startY, normalPaint)
         startY += 25f
         canvas.drawText("الموقع: ${order.delivery_location}", pageInfo.pageWidth - 40f, startY, normalPaint)
         startY += 25f

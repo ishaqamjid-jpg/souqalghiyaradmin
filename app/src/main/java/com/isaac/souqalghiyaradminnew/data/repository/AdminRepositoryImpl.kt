@@ -17,7 +17,7 @@ class AdminRepositoryImpl @Inject constructor(
         return try {
             val snapshot = db.collection("UserEmp")
                 .whereEqualTo("phone_number", phoneNumber)
-                .whereEqualTo("password", password) 
+                .whereEqualTo("password", password)
                 .whereEqualTo("status", "active")
                 .get()
                 .await()
@@ -45,7 +45,7 @@ class AdminRepositoryImpl @Inject constructor(
                     val user = snapshot.toObject(UserEmp::class.java)?.copy(user_id = snapshot.id)
                     trySend(user).isSuccess
                 } else {
-                    trySend(null).isSuccess 
+                    trySend(null).isSuccess
                 }
             }
         awaitClose { subscription.remove() }

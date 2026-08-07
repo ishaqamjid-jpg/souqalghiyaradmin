@@ -86,12 +86,12 @@ class LoginViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            
+
             // 2. الاتصال بـ Repository (والذي يجلب البيانات من Firebase)
             val user = adminRepository.loginAdmin(phone, pass)
 
             if (user != null && user.status == "active") {
-                
+
                 // 3. جلب الـ Token الجديد وحفظه في Firebase محلياً قبل الدخول (مهم جداً للإشعارات)
                 try {
                     val token = FirebaseMessaging.getInstance().token.await()
@@ -108,11 +108,11 @@ class LoginViewModel @Inject constructor(
                     adminName = user.display_name,
                     permissions = user.user_permissions
                 )
-                
+
                 if (_rememberMe.value) {
                     saveSessionLocally(user.user_id, user.display_name, user.user_permissions)
                 }
-                
+
                 // الانتقال للداش بورد مع تمرير البيانات الهامة
                 onSuccess(user.user_id, user.display_name, user.user_permissions)
             } else {
