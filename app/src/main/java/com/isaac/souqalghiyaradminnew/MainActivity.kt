@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import com.isaac.souqalghiyaradminnew.presentation.login.LoginScreen
@@ -131,6 +132,9 @@ class MainActivity : ComponentActivity() {
                                             .update("fcm_token", "")
                                     }
                                     FirebaseMessaging.getInstance().unsubscribeFromTopic("admin_notifications")
+                                    
+                                    // تسجيل الخروج من Firebase Auth
+                                    FirebaseAuth.getInstance().signOut()
                                     
                                     sharedPref.edit().clear().apply()
                                     currentSessionId = ""
