@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-// حالة واجهة المستخدم
 data class LoginUiState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
@@ -56,7 +55,6 @@ class LoginViewModel @Inject constructor(
         _rememberMe.value = checked
     }
 
-    // دالة داخلية للتحقق من الإنترنت
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return false
@@ -70,7 +68,6 @@ class LoginViewModel @Inject constructor(
     }
 
     fun login(onSuccess: (String, String, String) -> Unit) {
-        // 1. التحقق من الاتصال بالإنترنت أولاً
         if (!isNetworkAvailable()) {
             _uiState.value = _uiState.value.copy(error = "لا يوجد اتصال بالإنترنت. يرجى التحقق من الشبكة.")
             return
@@ -87,16 +84,13 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            // 2. الاتصال بـ Repository (والذي يجلب البيانات من Firebase)
             val user = adminRepository.loginAdmin(phone, pass)
 
             if (user != null && user.status == "active") {
-
-                // 3. جلب الـ Token الجديد وحفظه في Firebase محلياً قبل الدخول (مهم جداً للإشعارات)
                 try {
                     val token = FirebaseMessaging.getInstance().token.await()
-                    adminRepository.updateFcmToken(user.user_id, token) // تحديثه في Firestore
-                    saveTokenLocally(token) // حفظه محلياً في الـ SharedPreferences
+                    adminRepository.updateFcmToken(user.user_id, token)
+                    saveTokenLocally(token)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -113,7 +107,6 @@ class LoginViewModel @Inject constructor(
                     saveSessionLocally(user.user_id, user.display_name, user.user_permissions)
                 }
 
-                // الانتقال للداش بورد مع تمرير البيانات الهامة
                 onSuccess(user.user_id, user.display_name, user.user_permissions)
             } else {
                 _uiState.value = _uiState.value.copy(isLoading = false, error = "بيانات الدخول غير صحيحة أو الحساب موقوف")
