@@ -66,9 +66,7 @@ class MainActivity : ComponentActivity() {
         val savedAdminId = sharedPref.getString("admin_id", "") ?: ""
         val savedAdminPermissions = sharedPref.getString("admin_permissions", "employee") ?: "employee"
 
-        // تحديث التوكن في Firestore إذا كان مسجلاً للدخول
         if (isLoggedIn && savedAdminId.isNotEmpty()) {
-            // 🌟 الاشتراك المباشر في الإشعارات عبر الـ Topic 🌟
             FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications")
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
@@ -132,7 +130,6 @@ class MainActivity : ComponentActivity() {
                                         FirebaseFirestore.getInstance().collection("UserEmp").document(currentSessionId)
                                             .update("fcm_token", "")
                                     }
-                                    // إلغاء الاشتراك عند الخروج
                                     FirebaseMessaging.getInstance().unsubscribeFromTopic("admin_notifications")
                                     
                                     sharedPref.edit().clear().apply()
