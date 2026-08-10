@@ -9,9 +9,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,7 +40,7 @@ fun LoginScreen(
     navigateToDashboard: (String, String, String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val phoneNumber by viewModel.phoneNumber.collectAsState()
+    val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
     val rememberMe by viewModel.rememberMe.collectAsState()
 
@@ -102,14 +102,14 @@ fun LoginScreen(
                 Spacer(Modifier.height(40.dp))
 
                 OutlinedTextField(
-                    value = phoneNumber,
-                    onValueChange = viewModel::onPhoneNumberChange,
-                    label = { Text("رقم هاتف الموظف") },
-                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = Color.White.copy(0.7f)) },
+                    value = email,
+                    onValueChange = viewModel::onEmailChange,
+                    label = { Text("البريد الإلكتروني") },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Color.White.copy(0.7f)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Phone,
+                        keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
                     ),
                     shape = RoundedCornerShape(12.dp),
@@ -211,7 +211,7 @@ fun LoginScreen(
             AlertDialog(
                 onDismissRequest = { showHelpDialog = false },
                 title = { Text("مساعدة تسجيل الدخول", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D)) },
-                text = { Text("قم بتسجيل الدخول باستخدام رقم الهاتف وكلمة المرور المسجلة مسبقاً للموظفين في قاعدة البيانات الخاصة بالشركة.") },
+                text = { Text("قم بتسجيل الدخول باستخدام البريد الإلكتروني وكلمة المرور المسجلة مسبقاً للموظفين في قاعدة البيانات الخاصة بالشركة.") },
                 confirmButton = {
                     TextButton(onClick = { showHelpDialog = false }) {
                         Text("حسناً", color = Color(0xFF0D1B6D), fontWeight = FontWeight.Bold)
