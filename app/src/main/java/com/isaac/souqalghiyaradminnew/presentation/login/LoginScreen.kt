@@ -50,7 +50,6 @@ fun LoginScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // تدرج لوني احترافي وفخم يليق بلوحة التحكم
                 .background(Brush.verticalGradient(listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364))))
         ) {
             IconButton(
@@ -65,13 +64,12 @@ fun LoginScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // الشعار بتصميم دائري بارز
                 Surface(
                     modifier = Modifier
                         .size(140.dp)
                         .shadow(15.dp, CircleShape),
                     shape = CircleShape,
-                    color = Color.White // خلفية بيضاء لتبرز الشعار
+                    color = Color.White
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.logo_admin),
