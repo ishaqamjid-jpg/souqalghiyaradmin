@@ -34,8 +34,8 @@ class LoginViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    private val _phoneNumber = MutableStateFlow("")
-    val phoneNumber: StateFlow<String> = _phoneNumber.asStateFlow()
+    private val _email = MutableStateFlow("")
+    val email: StateFlow<String> = _email.asStateFlow()
 
     private val _password = MutableStateFlow("")
     val password: StateFlow<String> = _password.asStateFlow()
@@ -43,8 +43,8 @@ class LoginViewModel @Inject constructor(
     private val _rememberMe = MutableStateFlow(false)
     val rememberMe: StateFlow<Boolean> = _rememberMe.asStateFlow()
 
-    fun onPhoneNumberChange(number: String) {
-        _phoneNumber.value = number
+    fun onEmailChange(newEmail: String) {
+        _email.value = newEmail
     }
 
     fun onPasswordChange(pass: String) {
@@ -73,18 +73,18 @@ class LoginViewModel @Inject constructor(
             return
         }
 
-        val phone = _phoneNumber.value.trim()
+        val currentEmail = _email.value.trim()
         val pass = _password.value.trim()
 
-        if (phone.isEmpty() || pass.isEmpty()) {
-            _uiState.value = _uiState.value.copy(error = "يرجى إدخال رقم الهاتف وكلمة المرور")
+        if (currentEmail.isEmpty() || pass.isEmpty()) {
+            _uiState.value = _uiState.value.copy(error = "يرجى إدخال البريد الإلكتروني وكلمة المرور")
             return
         }
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            val user = adminRepository.loginAdmin(phone, pass)
+            val user = adminRepository.loginAdmin(currentEmail, pass)
 
             if (user != null && user.status == "active") {
                 try {
@@ -109,7 +109,7 @@ class LoginViewModel @Inject constructor(
 
                 onSuccess(user.user_id, user.display_name, user.user_permissions)
             } else {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = "بيانات الدخول غير صحيحة أو الحساب موقوف")
+                _uiState.value = _uiState.value.copy(isLoading = false, error = "البريد الإلكتروني أو كلمة المرور غير صحيحة، أو الحساب غير نشط")
             }
         }
     }
