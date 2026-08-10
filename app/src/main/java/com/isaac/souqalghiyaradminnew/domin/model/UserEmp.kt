@@ -5,6 +5,7 @@ import com.google.firebase.Timestamp
 data class UserEmp(
     val user_id: String = "",          // يتم ملؤه تلقائياً من الـ Document ID العشوائي
     val phone_number: String = "",
+val email: String = "",
     val display_name: String = "",
     val fcm_token: String = "",
 val password: String = "",
