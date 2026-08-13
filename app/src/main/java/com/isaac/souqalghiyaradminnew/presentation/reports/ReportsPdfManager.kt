@@ -128,11 +128,20 @@ object ReportsPdfManager {
                     is com.google.firebase.Timestamp -> dateFormat.format(ts.toDate())
                     else -> "غير محدد"
                 }
+                
+                // التعديل هنا لطباعة تاريخ الحالة
+                val statusDate = when (val ts = order.order_status_date) {
+                    is com.google.firebase.Timestamp -> dateFormat.format(ts.toDate())
+                    else -> "غير محدد"
+                }
 
                 canvas.drawText("رقم الطلب: ${order.order_number} | الحالة: ${order.order_status}", rightMargin, yPosition, headerPaint)
                 yPosition += 25f
 
-                canvas.drawText("التاريخ: $orderDate", rightMargin, yPosition, textPaint)
+                canvas.drawText("تاريخ الطلب: $orderDate", rightMargin, yPosition, textPaint)
+                yPosition += 20f
+                
+                canvas.drawText("تاريخ الحالة: $statusDate", rightMargin, yPosition, textPaint)
                 yPosition += 20f
 
                 val vehicleInfo = "${order.brand_name} ${order.vehicle_name} ${order.vehicle_model} - ${order.manufacture}"
