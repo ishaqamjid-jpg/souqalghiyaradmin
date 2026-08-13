@@ -65,7 +65,6 @@ class OrdersRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
-    // الإضافة هنا: جلب الطلبات جاري التوصيل
     override fun getGoingOrders(): Flow<List<OrderWithItems>> = callbackFlow {
         val subscription = db.collection("orders").whereEqualTo("order_status", "going").addSnapshotListener { snapshot, error ->
             if (error != null) { close(error); return@addSnapshotListener }
@@ -180,9 +179,13 @@ class OrdersRepositoryImpl @Inject constructor(
 
     override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
         return try {
-            // 1. تحديث حالة الطلب
+            // 1. تحديث حالة الطلب مع تعديل تاريخ الحالة الجديدة
             db.collection("orders").document(orderId).update(
-                mapOf("order_status" to newStatus, "delivery_fees" to deliveryFees)
+                mapOf(
+                    "order_status" to newStatus,
+                    "delivery_fees" to deliveryFees,
+                    "order_status_date" to com.google.firebase.Timestamp.now()
+                )
             ).await()
 
             // 2. جلب بيانات الطلب للتعامل مع الإشعارات
@@ -217,11 +220,13 @@ class OrdersRepositoryImpl @Inject constructor(
         } catch (e: Exception) { Result.failure(e) }
     }
     
-    // الإضافة هنا: لإنهاء طلب "جاري التوصيل"
     override suspend fun finalizeOrder(orderId: String, orderNumber: Long, userId: String, isSuccess: Boolean, notes: String, incrementRejection: Boolean): Result<Unit> {
         return try {
             val newStatus = if (isSuccess) "completed" else "canceled"
-            val updates = mutableMapOf<String, Any>("order_status" to newStatus)
+            val updates = mutableMapOf<String, Any>(
+                "order_status" to newStatus,
+                "order_status_date" to com.google.firebase.Timestamp.now()
+            )
             if (!isSuccess && notes.isNotEmpty()) {
                 updates["approval_notes"] = notes 
             }
