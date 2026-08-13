@@ -13,6 +13,8 @@ data class Order(
     val delivery_location: String = "",
     val delivery_fees: Double = 0.0,
     val order_status: String = "pending",
+val order_status_date :Timestamp? = null ,
+
     val order_number: Int = 1,
     val vin_number: String = "",
  val approval_notes:String = "",
