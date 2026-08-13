@@ -296,6 +296,10 @@ fun FullOrderDetailsCard(
         is com.google.firebase.Timestamp -> dateFormat.format(ts.toDate())
         else -> "غير محدد"
     }
+    val statusDate = when (val ts = orderData.order.order_status_date) {
+        is com.google.firebase.Timestamp -> dateFormat.format(ts.toDate())
+        else -> "غير محدد"
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -318,7 +322,10 @@ fun FullOrderDetailsCard(
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = "التاريخ: $orderDate", fontSize = 12.sp, color = Color.Gray)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "تاريخ الطلب: $orderDate", fontSize = 12.sp, color = Color.Gray)
+                Text(text = "تاريخ الحالة: $statusDate", fontSize = 12.sp, color = Color.Gray)
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
             val fullVehicleName = "${orderData.order.brand_name} ${orderData.order.vehicle_name} ${orderData.order.vehicle_model}".trim()
