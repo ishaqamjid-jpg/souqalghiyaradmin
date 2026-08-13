@@ -34,7 +34,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
 import com.isaac.souqalghiyaradminnew.presentation.reports.ReportsPdfManager
 import kotlinx.coroutines.flow.StateFlow
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -297,6 +299,17 @@ fun OrderExpandableCard(
         viewModel.fetchUserPhone(order.user_id)
     }
 
+    // تنسيق التواريخ
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
+    val orderDateFormatted = when (val ts = order.created_at) {
+        is com.google.firebase.Timestamp -> dateFormat.format(ts.toDate())
+        else -> "غير محدد"
+    }
+    val statusDateFormatted = when (val ts = order.order_status_date) {
+        is com.google.firebase.Timestamp -> dateFormat.format(ts.toDate())
+        else -> "غير محدد"
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable {
             expanded = !expanded
@@ -325,14 +338,19 @@ fun OrderExpandableCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    // الإضافة الجديدة: إظهار رقم الطلب بشكل بارز في الأعلى
                     Text(
                         text = "طلب رقم: #${order.order_number}",
                         fontWeight = FontWeight.Black,
                         color = Color(0xFFD32F2F),
                         fontSize = 16.sp
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "تاريخ الطلب: $orderDateFormatted",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
                     
                     Text("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D), fontSize = 15.sp)
                     Text("الماركة: ${order.brand_name} | مكان التصنيع: ${order.manufacture}", color = Color.DarkGray, fontSize = 14.sp)
@@ -358,6 +376,11 @@ fun OrderExpandableCard(
                         text = "الحالة: $statusTextAr",
                         color = statusColor,
                         fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 4.dp)
+                    )
+                    Text(
+                        text = "تاريخ الحالة: $statusDateFormatted",
+                        color = Color.Gray,
+                        fontSize = 11.sp
                     )
                 }
                 Icon(imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null, tint = Color(0xFF0D1B6D))
