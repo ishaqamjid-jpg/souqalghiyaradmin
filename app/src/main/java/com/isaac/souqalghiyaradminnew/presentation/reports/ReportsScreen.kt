@@ -36,18 +36,23 @@ fun ReportsScreen(
     isAdmin: Boolean = true
 ) {
     val stats by viewModel.stats.collectAsState()
-    val filteredOrders by viewModel.filteredOrders.collectAsState()
-    val hasSearched by viewModel.hasSearched.collectAsState()
+    val hasAnalyzedStats by viewModel.hasAnalyzedStats.collectAsState()
+    
+    val reportFilteredOrders by viewModel.reportFilteredOrders.collectAsState()
+    val hasSearchedReports by viewModel.hasSearchedReports.collectAsState()
+    
     val context = LocalContext.current
 
-    val merchantName by viewModel.merchantName.collectAsState()
-    val partName by viewModel.partName.collectAsState()
-    val orderNumber by viewModel.orderNumber.collectAsState()
-    val vehicleModel by viewModel.vehicleModel.collectAsState()
-    val orderStatus by viewModel.orderStatus.collectAsState()
-    val fromDate by viewModel.fromDate.collectAsState()
-    val toDate by viewModel.toDate.collectAsState()
-    val isDateEnabled by viewModel.isDateFilterEnabled.collectAsState()
+    // متغيرات التقارير
+    val reportMerchantName by viewModel.reportMerchantName.collectAsState()
+    val reportPartName by viewModel.reportPartName.collectAsState()
+    val reportOrderNumber by viewModel.reportOrderNumber.collectAsState()
+    val reportOrderStatus by viewModel.reportOrderStatus.collectAsState()
+
+    // متغيرات الإحصائيات
+    val statsFromDate by viewModel.statsFromDate.collectAsState()
+    val statsToDate by viewModel.statsToDate.collectAsState()
+    val isStatsDateEnabled by viewModel.isStatsDateFilterEnabled.collectAsState()
 
     var expandedStatus by remember { mutableStateOf(false) }
 
@@ -64,7 +69,7 @@ fun ReportsScreen(
         "waiting for approvel" to "انتظار الموافقة"
     )
 
-    val selectedStatusText = statusOptions.find { it.first == orderStatus }?.second ?: "الكل (فارغ)"
+    val selectedStatusText = statusOptions.find { it.first == reportOrderStatus }?.second ?: "الكل (فارغ)"
 
     fun openDatePicker(onDateSelected: (String) -> Unit) {
         val calendar = Calendar.getInstance()
@@ -122,22 +127,22 @@ fun ReportsScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                    Switch(checked = isDateEnabled, onCheckedChange = { viewModel.isDateFilterEnabled.value = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF0D1B6D), checkedTrackColor = Color(0xFF0D1B6D).copy(alpha = 0.5f)))
+                                    Switch(checked = isStatsDateEnabled, onCheckedChange = { viewModel.isStatsDateFilterEnabled.value = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF0D1B6D), checkedTrackColor = Color(0xFF0D1B6D).copy(alpha = 0.5f)))
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("تفعيل فلتر التاريخ للتحليل", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                                 }
 
-                                AnimatedVisibility(visible = isDateEnabled) {
+                                AnimatedVisibility(visible = isStatsDateEnabled) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(onClick = { openDatePicker { viewModel.fromDate.value = it } }, modifier = Modifier.weight(1f)) {
+                                        OutlinedButton(onClick = { openDatePicker { viewModel.statsFromDate.value = it } }, modifier = Modifier.weight(1f)) {
                                             Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF0D1B6D))
                                             Spacer(Modifier.width(4.dp))
-                                            Text(if(fromDate.isEmpty()) "من تاريخ" else fromDate, fontSize = 12.sp, color = Color.DarkGray)
+                                            Text(if(statsFromDate.isEmpty()) "من تاريخ" else statsFromDate, fontSize = 12.sp, color = Color.DarkGray)
                                         }
-                                        OutlinedButton(onClick = { openDatePicker { viewModel.toDate.value = it } }, modifier = Modifier.weight(1f)) {
+                                        OutlinedButton(onClick = { openDatePicker { viewModel.statsToDate.value = it } }, modifier = Modifier.weight(1f)) {
                                             Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF0D1B6D))
                                             Spacer(Modifier.width(4.dp))
-                                            Text(if(toDate.isEmpty()) "إلى تاريخ" else toDate, fontSize = 12.sp, color = Color.DarkGray)
+                                            Text(if(statsToDate.isEmpty()) "إلى تاريخ" else statsToDate, fontSize = 12.sp, color = Color.DarkGray)
                                         }
                                     }
                                 }
@@ -145,7 +150,7 @@ fun ReportsScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 Button(
-                                    onClick = { viewModel.searchOrders() },
+                                    onClick = { viewModel.analyzeStats() },
                                     modifier = Modifier.fillMaxWidth().height(45.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
                                 ) {
@@ -158,19 +163,25 @@ fun ReportsScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        Text("النتائج الإحصائية:", fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF4CAF50), Modifier.weight(1f))
-                                StatCard("المرفوضة", stats.totalCanceledOrders.toString(), Color(0xFFE53935), Modifier.weight(1f))
-                                StatCard("المواصلات", "${stats.totalTransportation}", Color(0xFF00ACC1), Modifier.weight(1f))
+                        if (!hasAnalyzedStats) {
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Text("اضغط على تحليل لعرض الإحصائيات", color = Color.Gray, fontSize = 14.sp)
                             }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF57C00), Modifier.weight(1f))
-                                StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFF8E24AA), Modifier.weight(1f))
-                                StatCard("الربح", "${stats.netProfit}", Color(0xFF2E7D32), Modifier.weight(1f))
+                        } else {
+                            Text("النتائج الإحصائية:", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    StatCard("المكتملة", stats.totalCompletedOrders.toString(), Color(0xFF4CAF50), Modifier.weight(1f))
+                                    StatCard("المرفوضة", stats.totalCanceledOrders.toString(), Color(0xFFE53935), Modifier.weight(1f))
+                                    StatCard("المواصلات", "${stats.totalTransportation}", Color(0xFF00ACC1), Modifier.weight(1f))
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    StatCard("التكاليف", "${stats.totalCosts}", Color(0xFFF57C00), Modifier.weight(1f))
+                                    StatCard("الإيرادات", "${stats.totalRevenue}", Color(0xFF8E24AA), Modifier.weight(1f))
+                                    StatCard("الربح", "${stats.netProfit}", Color(0xFF2E7D32), Modifier.weight(1f))
+                                }
                             }
                         }
 
@@ -188,7 +199,7 @@ fun ReportsScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedTextField(value = orderNumber, onValueChange = { viewModel.orderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
+                                    OutlinedTextField(value = reportOrderNumber, onValueChange = { viewModel.reportOrderNumber.value = it }, label = { Text("رقم الطلب") }, modifier = Modifier.weight(1f), singleLine = true)
 
                                     ExposedDropdownMenuBox(
                                         expanded = expandedStatus,
@@ -213,7 +224,7 @@ fun ReportsScreen(
                                                 DropdownMenuItem(
                                                     text = { Text(option.second, color = Color.Black) },
                                                     onClick = {
-                                                        viewModel.orderStatus.value = option.first
+                                                        viewModel.reportOrderStatus.value = option.first
                                                         expandedStatus = false
                                                     }
                                                 )
@@ -223,14 +234,14 @@ fun ReportsScreen(
                                 }
 
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                                    OutlinedTextField(value = merchantName, onValueChange = { viewModel.merchantName.value = it }, label = { Text("اسم التاجر") }, modifier = Modifier.weight(1f), singleLine = true)
-                                    OutlinedTextField(value = partName, onValueChange = { viewModel.partName.value = it }, label = { Text("اسم القطعة") }, modifier = Modifier.weight(1f), singleLine = true)
+                                    OutlinedTextField(value = reportMerchantName, onValueChange = { viewModel.reportMerchantName.value = it }, label = { Text("اسم التاجر") }, modifier = Modifier.weight(1f), singleLine = true)
+                                    OutlinedTextField(value = reportPartName, onValueChange = { viewModel.reportPartName.value = it }, label = { Text("اسم القطعة") }, modifier = Modifier.weight(1f), singleLine = true)
                                 }
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 Button(
-                                    onClick = { viewModel.searchOrders() },
+                                    onClick = { viewModel.searchReports() },
                                     modifier = Modifier.fillMaxWidth().height(45.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
                                 ) {
@@ -245,10 +256,10 @@ fun ReportsScreen(
 
                         // زر تصدير PDF
                         Button(
-                            onClick = { ReportsPdfManager.generateFilteredReportPdf(context, filteredOrders) },
+                            onClick = { ReportsPdfManager.generateFilteredReportPdf(context, reportFilteredOrders) },
                             modifier = Modifier.fillMaxWidth().height(45.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
-                            enabled = hasSearched && filteredOrders.isNotEmpty()
+                            enabled = hasSearchedReports && reportFilteredOrders.isNotEmpty()
                         ) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
@@ -258,23 +269,23 @@ fun ReportsScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         // عرض النتائج في الأسفل
-                        if (!hasSearched) {
+                        if (!hasSearchedReports) {
                             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 Text("قم بضبط الفلاتر واضغط على بحث لعرض السجل", color = Color.Gray, fontSize = 14.sp)
                             }
-                        } else if (filteredOrders.isEmpty()) {
+                        } else if (reportFilteredOrders.isEmpty()) {
                             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 Text("لا توجد طلبات تطابق معايير البحث", color = Color.Gray, fontSize = 14.sp)
                             }
                         } else {
-                            Text("سجل الطلبات المطابقة (${filteredOrders.size}):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                            Text("سجل الطلبات المطابقة (${reportFilteredOrders.size}):", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                             Spacer(modifier = Modifier.height(8.dp))
 
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                items(filteredOrders) { orderData ->
+                                items(reportFilteredOrders) { orderData ->
                                     FullOrderDetailsCard(orderData = orderData, isAdmin = isAdmin)
                                 }
                             }
