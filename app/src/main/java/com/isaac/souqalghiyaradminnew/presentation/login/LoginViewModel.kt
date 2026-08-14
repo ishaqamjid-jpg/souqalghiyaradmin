@@ -88,9 +88,13 @@ class LoginViewModel @Inject constructor(
 
             if (user != null && user.status == "active") {
                 try {
+                    // جلب التوكن وتحديثه
                     val token = FirebaseMessaging.getInstance().token.await()
                     adminRepository.updateFcmToken(user.user_id, token)
                     saveTokenLocally(token)
+                    
+                    // الحل: الاشتراك في موضوع الإشعارات فوراً عند تسجيل الدخول لأول مرة
+                    FirebaseMessaging.getInstance().subscribeToTopic("admin_notifications").await()
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
