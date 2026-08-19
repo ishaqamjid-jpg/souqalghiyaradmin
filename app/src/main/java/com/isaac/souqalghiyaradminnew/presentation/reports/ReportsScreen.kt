@@ -37,10 +37,10 @@ fun ReportsScreen(
 ) {
     val stats by viewModel.stats.collectAsState()
     val hasAnalyzedStats by viewModel.hasAnalyzedStats.collectAsState()
-    
+
     val reportFilteredOrders by viewModel.reportFilteredOrders.collectAsState()
     val hasSearchedReports by viewModel.hasSearchedReports.collectAsState()
-    
+
     val context = LocalContext.current
 
     // متغيرات التقارير
@@ -343,6 +343,7 @@ fun FullOrderDetailsCard(
             Text(text = "المركبة: $fullVehicleName - ${orderData.order.manufacture}", fontSize = 14.sp)
 
             Text(text = "رقم الشاصي: ${orderData.order.vin_number.ifEmpty { "غير متوفر" }}", fontSize = 14.sp)
+            Text(text = "رقم الهاتف: ${orderData.order.user_number.ifEmpty { "غير متوفر" }}", fontSize = 14.sp)
 
             Text(text = "رسوم التوصيل: ${orderData.order.delivery_fees} ر.ي", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
 

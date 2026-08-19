@@ -41,25 +41,25 @@ class ReportsViewModel @Inject constructor(
     val hasAnalyzedStats = MutableStateFlow(false)
 
     private val _statsOrders = MutableStateFlow<List<OrderWithItems>>(emptyList())
-    
+
     val stats: StateFlow<ReportStats> = _statsOrders.map { orders ->
         val completedOrders = orders.filter { it.order.order_status.equals("completed", ignoreCase = true) }
         val canceledOrders = orders.filter { it.order.order_status.equals("canceled", ignoreCase = true) }
-        
+
         var transportation = 0.0
         var revenue = 0.0
         var costs = 0.0
-        
+
         completedOrders.forEach { orderData ->
             transportation += orderData.order.delivery_fees
             // الإيرادات من المنتجات والتوصيل معاً
-            revenue += orderData.order.delivery_fees 
+            revenue += orderData.order.delivery_fees
             orderData.items.forEach { item ->
                 revenue += (item.selling_price * item.quantity)
                 costs += (item.purchase_price * item.quantity)
             }
         }
-        
+
         ReportStats(
             totalCompletedOrders = completedOrders.size,
             totalCanceledOrders = canceledOrders.size,
@@ -71,7 +71,7 @@ class ReportsViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ReportStats())
 
     fun analyzeStats() {
-        hasAnalyzedStats.value = true 
+        hasAnalyzedStats.value = true
         var currentList = allOrders.value
 
         if (isStatsDateFilterEnabled.value && statsFromDate.value.isNotBlank() && statsToDate.value.isNotBlank()) {
@@ -80,7 +80,7 @@ class ReportsViewModel @Inject constructor(
                 val from = format.parse(statsFromDate.value)?.time ?: 0L
                 val toParsed = format.parse(statsToDate.value)
                 val to = if (toParsed != null) toParsed.time + 86399999L else Long.MAX_VALUE
-                
+
                 currentList = currentList.filter { orderData ->
                     val orderTime = when (val createdAt = orderData.order.created_at) {
                         is com.google.firebase.Timestamp -> createdAt.toDate().time
@@ -109,7 +109,7 @@ class ReportsViewModel @Inject constructor(
     val reportFilteredOrders: StateFlow<List<OrderWithItems>> = _reportFilteredOrders
 
     fun searchReports() {
-        hasSearchedReports.value = true 
+        hasSearchedReports.value = true
         var currentList = allOrders.value
 
         // فلترة رقم الطلب

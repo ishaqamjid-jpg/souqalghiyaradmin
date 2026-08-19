@@ -22,9 +22,12 @@ import java.util.Locale
 
 object OrderPdfManager {
 
-    fun generateOrderPdf(context: Context, data: OrderWithItems, clientPhone: String) {
+    fun generateOrderPdf(context: Context, data: OrderWithItems) {
         val order = data.order
         val items = data.items
+
+        // جلب الرقم مباشرة من الطلب
+        val clientPhone = order.user_number.ifEmpty { "غير متوفر" }
 
         val pdfDocument = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // مقاس A4 قياسي
@@ -113,7 +116,7 @@ object OrderPdfManager {
         startY += 25f
         canvas.drawText("الموقع: ${order.delivery_location}", pageInfo.pageWidth - 40f, startY, normalPaint)
         startY += 25f
-        // استخدام رقم العميل الذي تم جلبه
+        // استخدام رقم العميل الذي تم جلبه من الطلب
         canvas.drawText("رقم الهاتف: $clientPhone", pageInfo.pageWidth - 40f, startY, normalPaint)
 
         startY += 40f

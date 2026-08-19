@@ -2,7 +2,6 @@ package com.isaac.souqalghiyaradminnew.presentation.orders
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
 import com.isaac.souqalghiyaradminnew.domain.model.OrderWithItems
 import com.isaac.souqalghiyaradminnew.domain.repository.OrdersRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,7 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 data class ItemAdminPricing(
@@ -58,29 +56,7 @@ class OrdersViewModel @Inject constructor(
     private val _isLoadingHistorical = MutableStateFlow(false)
     val isLoadingHistorical: StateFlow<Boolean> = _isLoadingHistorical.asStateFlow()
 
-    private val _userPhones = MutableStateFlow<Map<String, String>>(emptyMap())
-    val userPhones: StateFlow<Map<String, String>> = _userPhones.asStateFlow()
-
-    fun fetchUserPhone(userId: String) {
-        if (userId.isEmpty() || _userPhones.value.containsKey(userId)) return
-        viewModelScope.launch {
-            try {
-                val db = FirebaseFirestore.getInstance()
-                val snapshot = db.collection("users").whereEqualTo("user_id", userId).get().await()
-                if (!snapshot.isEmpty) {
-                    val phone = snapshot.documents.first().getString("phone_number") ?: "غير متوفر"
-                    _userPhones.value = _userPhones.value.toMutableMap().apply { put(userId, phone) }
-                } else {
-                    val doc = db.collection("users").document(userId).get().await()
-                    val phone = doc.getString("phone_number") ?: "غير متوفر"
-                    _userPhones.value = _userPhones.value.toMutableMap().apply { put(userId, phone) }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _userPhones.value = _userPhones.value.toMutableMap().apply { put(userId, "غير متوفر") }
-            }
-        }
-    }
+    // تم إزالة دوال ومتغيرات fetchUserPhone لأننا نستدعي الهاتف مباشرة من order.user_number
 
     fun approveOrder(
         orderId: String,

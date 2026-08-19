@@ -292,12 +292,8 @@ fun OrderExpandableCard(
         }
     }
 
-    val userPhones by viewModel.userPhones.collectAsState()
-    val clientPhone = userPhones[order.user_id] ?: "جاري الجلب..."
-
-    LaunchedEffect(order.user_id) {
-        viewModel.fetchUserPhone(order.user_id)
-    }
+    // التعديل هنا: جلب رقم الهاتف من نفس جدول الطلبات (user_number) بدلاً من ViewModel
+    val clientPhone = order.user_number.ifEmpty { "غير متوفر" }
 
     // تنسيق التواريخ
     val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
@@ -351,7 +347,7 @@ fun OrderExpandableCard(
                         fontSize = 12.sp
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    
+
                     Text("المركبة: ${order.vehicle_name} - ${order.vehicle_model}", fontWeight = FontWeight.Bold, color = Color(0xFF0D1B6D), fontSize = 15.sp)
                     Text("الماركة: ${order.brand_name} | مكان التصنيع: ${order.manufacture}", color = Color.DarkGray, fontSize = 14.sp)
                     Text("الموقع: ${order.delivery_location}", color = Color.Gray, fontSize = 12.sp)
@@ -437,7 +433,7 @@ fun OrderExpandableCard(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             if (showPdfExport) {
                                 OutlinedButton(
-                                    onClick = { OrderPdfManager.generateOrderPdf(context, data, clientPhone) },
+                                    onClick = { OrderPdfManager.generateOrderPdf(context, data) },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D)),
                                     modifier = Modifier.height(45.dp)
                                 ) {
@@ -477,7 +473,7 @@ fun OrderExpandableCard(
 
                             if (showPdfExport) {
                                 OutlinedButton(
-                                    onClick = { OrderPdfManager.generateOrderPdf(context, data, clientPhone) },
+                                    onClick = { OrderPdfManager.generateOrderPdf(context, data) },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D1B6D))
                                 ) {
                                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
