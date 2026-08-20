@@ -109,7 +109,8 @@ class MainActivity : ComponentActivity() {
                                     currentSessionPermissions = permissions
 
                                     navController.navigate("dashboard") {
-                                        popUpTo("login") { inclusive = true }
+                                        // استخدام 0 يضمن مسح المكدس بالكامل
+                                        popUpTo(0) { inclusive = true } 
                                     }
                                 }
                             )
@@ -137,12 +138,16 @@ class MainActivity : ComponentActivity() {
                                     FirebaseAuth.getInstance().signOut()
                                     
                                     sharedPref.edit().clear().apply()
+                                    
+                                    // [تعديل هام] التنقل لشاشة الدخول ومسح الشاشات من المكدس "أولاً"
+                                    navController.navigate("login") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                    
+                                    // تفريغ البيانات "بعد" التنقل لمنع الـ Crash
                                     currentSessionId = ""
                                     currentSessionName = ""
                                     currentSessionPermissions = ""
-                                    navController.navigate("login") {
-                                        popUpTo("dashboard") { inclusive = true }
-                                    }
                                 }
                             )
                         }
