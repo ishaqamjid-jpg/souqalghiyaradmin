@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.Timestamp
 import com.isaac.souqalghiyaradminnew.domain.model.Ad
+import com.isaac.souqalghiyaradminnew.domain.model.PublicAdvertisement
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -41,10 +42,15 @@ fun AdsManagementScreen(
     onBackClick: () -> Unit
 ) {
     val ads by viewModel.filteredAds.collectAsState()
+    val publicAds by viewModel.filteredPublicAds.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     var showDialog by remember { mutableStateOf(false) }
+    var showPublicAdDialog by remember { mutableStateOf(false) }
     var adToEdit by remember { mutableStateOf<Ad?>(null) }
+    
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    val tabs = listOf("التجارية", "العامة")
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
@@ -61,7 +67,14 @@ fun AdsManagementScreen(
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { adToEdit = null; showDialog = true },
+                    onClick = { 
+                        if (selectedTabIndex == 0) {
+                            adToEdit = null
+                            showDialog = true 
+                        } else {
+                            showPublicAdDialog = true
+                        }
+                    },
                     containerColor = Color(0xFF4CAF50)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "إضافة", tint = Color.White)
@@ -71,20 +84,32 @@ fun AdsManagementScreen(
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
                 
+                // --- قسم التبويبات (Tabs) ---
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF0D1B6D)
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTabIndex == index,
+                            onClick = { selectedTabIndex = index },
+                            text = { Text(title, fontWeight = FontWeight.Bold) }
+                        )
+                    }
+                }
+
                 // --- قسم البحث وإجمالي الإعلانات ---
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // خانة البحث
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
                         modifier = Modifier.weight(1f),
-                        label = { Text("بحث باسم الإعلان (الشركة)") },
+                        label = { Text(if (selectedTabIndex == 0) "بحث باسم الإعلان" else "بحث بالعنوان") },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "بحث", tint = Color.Gray) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -96,12 +121,11 @@ fun AdsManagementScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
 
-                    // مربع الإحصائيات (الإجمالي)
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1B6D)),
                         elevation = CardDefaults.cardElevation(4.dp),
-                        modifier = Modifier.height(60.dp) // ليكون بنفس ارتفاع خانة البحث تقريباً
+                        modifier = Modifier.height(60.dp)
                     ) {
                         Column(
                             modifier = Modifier.padding(horizontal = 16.dp).fillMaxHeight(),
@@ -109,35 +133,58 @@ fun AdsManagementScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text("الإجمالي", color = Color.LightGray, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Text("${ads.size}", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                            Text(if (selectedTabIndex == 0) "${ads.size}" else "${publicAds.size}", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                         }
                     }
                 }
 
-                // --- قائمة الإعلانات ---
-                if (ads.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("لا توجد إعلانات مطابقة", fontSize = 16.sp, color = Color.Gray)
+                // --- عرض القائمة بناءً على التبويب المختار ---
+                if (selectedTabIndex == 0) {
+                    // قائمة الإعلانات التجارية
+                    if (ads.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("لا توجد إعلانات مطابقة", fontSize = 16.sp, color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            items(ads, key = { it.ad_id }) { ad ->
+                                AdItemCard(
+                                    ad = ad,
+                                    onEdit = { adToEdit = ad; showDialog = true },
+                                    onToggleStatus = { viewModel.toggleAdStatus(ad) },
+                                    onDelete = { viewModel.deleteAd(ad.ad_id) }
+                                )
+                            }
+                        }
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp) // مسافة للزر العائم
-                    ) {
-                        items(ads, key = { it.ad_id }) { ad ->
-                            AdItemCard(
-                                ad = ad,
-                                onEdit = { adToEdit = ad; showDialog = true },
-                                onToggleStatus = { viewModel.toggleAdStatus(ad) },
-                                onDelete = { viewModel.deleteAd(ad.ad_id) }
-                            )
+                    // قائمة الإعلانات العامة
+                    if (publicAds.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("لا توجد إعلانات عامة مطابقة", fontSize = 16.sp, color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            items(publicAds, key = { it.doc_id }) { publicAd ->
+                                PublicAdItemCard(
+                                    ad = publicAd,
+                                    onDelete = { viewModel.deletePublicAd(publicAd.doc_id) }
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // --- نافذة الإضافة والتعديل ---
+            // --- النوافذ المنبثقة ---
             if (showDialog) {
                 AdEditorDialog(
                     initialAd = adToEdit,
@@ -149,10 +196,185 @@ fun AdsManagementScreen(
                     }
                 )
             }
+
+            if (showPublicAdDialog) {
+                PublicAdEditorDialog(
+                    onDismiss = { showPublicAdDialog = false },
+                    onConfirm = { newAd ->
+                        viewModel.savePublicAd(newAd)
+                        showPublicAdDialog = false
+                    }
+                )
+            }
         }
     }
 }
 
+@Composable
+fun PublicAdItemCard(
+    ad: PublicAdvertisement,
+    onDelete: () -> Unit
+) {
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    val createDateFormatted = ad.create_date?.toDate()?.let { dateFormat.format(it) } ?: "غير محدد"
+    val endDateFormatted = ad.end_date?.toDate()?.let { dateFormat.format(it) } ?: "دائم"
+    val categoryText = if (ad.category == "all") "للجميع (إشعار عام)" else "لمستخدم محدد (${ad.phone_number})"
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = ad.title, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color(0xFF0D1B6D))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = ad.message, fontSize = 14.sp, color = Color.DarkGray)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "الفئة: $categoryText", fontSize = 12.sp, color = Color.Blue)
+                    Text(text = "تاريخ الإنشاء: $createDateFormatted", fontSize = 12.sp, color = Color.Gray)
+                    Text(text = "تاريخ الانتهاء: $endDateFormatted", fontSize = 12.sp, color = Color.Red)
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.Red)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PublicAdEditorDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (PublicAdvertisement) -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("all") }
+    var phoneNumber by remember { mutableStateOf("") }
+    
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+    val context = LocalContext.current
+    var endDateStr by remember { mutableStateOf("") }
+
+    val showDatePicker = { onDateSelected: (String) -> Unit ->
+        val calendar = Calendar.getInstance()
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val selectedDate = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
+                onDateSelected(dateFormat.format(selectedDate.time))
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("إرسال إشعار عام / إعلان", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("العنوان") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    label = { Text("الرسالة") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 4
+                )
+                
+                Text("الفئة المستهدفة:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = category == "all", onClick = { category = "all" })
+                    Text("الكل (إشعار عام)")
+                    Spacer(modifier = Modifier.width(16.dp))
+                    RadioButton(selected = category == "specific", onClick = { category = "specific" })
+                    Text("مستخدم محدد")
+                }
+
+                if (category == "specific") {
+                    OutlinedTextField(
+                        value = phoneNumber,
+                        onValueChange = { phoneNumber = it },
+                        label = { Text("رقم الهاتف المستهدف") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = endDateStr,
+                        onValueChange = { },
+                        label = { Text("تاريخ الانتهاء (يمسح بعده)") },
+                        singleLine = true,
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = "اختر التاريخ") }
+                    )
+                    Spacer(modifier = Modifier.matchParentSize().clickable { showDatePicker { endDateStr = it } })
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    fun parseToMidnightTimestamp(dateStr: String): Timestamp? {
+                        return try {
+                            if (dateStr.isNotBlank()) {
+                                val parsedDate = dateFormat.parse(dateStr)
+                                val calendar = Calendar.getInstance().apply {
+                                    if (parsedDate != null) time = parsedDate
+                                    set(Calendar.HOUR_OF_DAY, 23)
+                                    set(Calendar.MINUTE, 59)
+                                    set(Calendar.SECOND, 59)
+                                    set(Calendar.MILLISECOND, 0)
+                                }
+                                Timestamp(calendar.time)
+                            } else null
+                        } catch (e: Exception) { null }
+                    }
+
+                    val newAd = PublicAdvertisement(
+                        title = title,
+                        message = message,
+                        category = category,
+                        phone_number = if (category == "specific") phoneNumber else "",
+                        end_date = parseToMidnightTimestamp(endDateStr)
+                    )
+                    onConfirm(newAd)
+                },
+                enabled = title.isNotBlank() && message.isNotBlank() && (category == "all" || phoneNumber.isNotBlank()),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
+            ) { Text("إرسال", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { 
+            TextButton(onClick = onDismiss) { Text("إلغاء", color = Color.Gray) } 
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+// أبقيت AdItemCard و AdEditorDialog الخاصة بالإعلانات التجارية كما هي تماماً هنا لتتجنب أي نقصان
 @Composable
 fun AdItemCard(
     ad: Ad,
@@ -253,7 +475,7 @@ fun AdEditorDialog(
         if (currentDate.isNotBlank()) {
             try {
                 dateFormat.parse(currentDate)?.let { calendar.time = it }
-            } catch (e: Exception) { /* تجاهل الخطأ */ }
+            } catch (e: Exception) {  }
         }
         DatePickerDialog(
             context,
@@ -269,7 +491,7 @@ fun AdEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initialAd == null) "إضافة إعلان" else "تعديل الإعلان", fontWeight = FontWeight.Bold) },
+        title = { Text(if (initialAd == null) "إضافة إعلان تجاري" else "تعديل الإعلان", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -363,7 +585,7 @@ fun AdEditorDialog(
                                 val parsedDate = dateFormat.parse(dateStr)
                                 val calendar = Calendar.getInstance().apply {
                                     if (parsedDate != null) time = parsedDate
-                                    set(Calendar.HOUR_OF_DAY, 23) // نجعل النهاية دائماً بآخر دقيقة في اليوم المختار
+                                    set(Calendar.HOUR_OF_DAY, 23)
                                     set(Calendar.MINUTE, 59)
                                     set(Calendar.SECOND, 59)
                                     set(Calendar.MILLISECOND, 0)
@@ -380,8 +602,8 @@ fun AdEditorDialog(
                         image_url = imageUrl,
                         click_action_type = clickActionType,
                         target_url = targetUrl.ifBlank { null },
-                        start_date = parseToMidnightTimestamp(startDateStr)?.let { Timestamp(it.seconds - 86399, 0) }, // بداية اليوم
-                        end_date = parseToMidnightTimestamp(endDateStr), // نهاية اليوم المختار
+                        start_date = parseToMidnightTimestamp(startDateStr)?.let { Timestamp(it.seconds - 86399, 0) }, 
+                        end_date = parseToMidnightTimestamp(endDateStr), 
                         priority = priority.toIntOrNull() ?: 0,
                         is_active = isActive,
                         created_at = initialAd?.created_at
