@@ -177,7 +177,7 @@ class OrdersRepositoryImpl @Inject constructor(
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
+        override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
         return try {
             // 1. تحديث حالة الطلب
             db.collection("orders").document(orderId).update(
@@ -196,7 +196,7 @@ class OrdersRepositoryImpl @Inject constructor(
             // 3. حذف إشعارات الإدارة (admin_alarm) المرتبطة بهذا الطلب
             deleteAdminAlarmByOrderNumber(orderNumber)
 
-            // 🌟 4. إنشاء تنبيه للعميل في جدول user_alarm (تم إصلاح وإضافة حالة الإلغاء أيضاً) 🌟
+            // 🌟 4. إنشاء تنبيه للعميل في جدول user_alarm مع إضافة type = order 🌟
             if (newStatus == "waiting for approvel" || newStatus == "waiting for approval" || newStatus == "canceled") {
                 if (userId.isNotEmpty()) {
                     val userSnapshot = db.collection("users").document(userId).get().await()
@@ -204,7 +204,6 @@ class OrdersRepositoryImpl @Inject constructor(
 
                     val userAlarmRef = db.collection("user_alarm").document()
                     
-                    // تحديد عنوان ورسالة الإشعار بناءً على حالة الطلب
                     val title = if (newStatus == "canceled") "طلب مرفوض" else "فاتورة جاهزة"
                     val message = if (newStatus == "canceled") "نعتذر منك، تم رفض طلبك رقم $orderNumber من قبل الإدارة." else "تم تسعير طلبك رقم $orderNumber، يرجى مراجعته."
 
@@ -216,7 +215,8 @@ class OrdersRepositoryImpl @Inject constructor(
                         "message" to message,
                         "receiver_id" to userId,
                         "fcm_token" to fcmToken,
-                        "isRead" to false
+                        "isRead" to false,
+                        "type" to "order" // <---- التعديل الذي طلبته هنا
                     )
                     userAlarmRef.set(alarmData).await()
                 }
@@ -241,17 +241,15 @@ class OrdersRepositoryImpl @Inject constructor(
             
             db.collection("orders").document(orderId).update(updates).await()
 
-            // رفع عداد الرفض إذا طلب الآدمن ذلك عند الإلغاء
             if (!isSuccess && incrementRejection && userId.isNotEmpty()) {
                 db.collection("users").document(userId).update(
                     "number_of_rejections", FieldValue.increment(1.0)
                 ).await()
             }
 
-            // مسح اشعار جاري التوصيل من الإدارة
             deleteAdminAlarmByOrderNumber(orderNumber)
 
-            // إنشاء إشعار للعميل بالنتيجة
+            // إنشاء إشعار للعميل بالنتيجة مع إضافة type = order
             if (userId.isNotEmpty()) {
                 val userSnapshot = db.collection("users").document(userId).get().await()
                 val fcmToken = userSnapshot.getString("fcm_token") ?: ""
@@ -268,7 +266,8 @@ class OrdersRepositoryImpl @Inject constructor(
                     "message" to message,
                     "receiver_id" to userId,
                     "fcm_token" to fcmToken,
-                    "isRead" to false
+                    "isRead" to false,
+                    "type" to "order" // <---- التعديل الذي طلبته هنا
                 )).await()
             }
 
@@ -277,6 +276,7 @@ class OrdersRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
 
     override fun getUnreadOrders(status: String): Flow<List<OrderWithItems>> = callbackFlow {
         val titleFilter = if (status == "canceled") "طلب مرفوض" else "طلب مكتمل"
