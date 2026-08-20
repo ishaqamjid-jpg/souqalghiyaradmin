@@ -31,6 +31,9 @@ class DashboardViewModel @Inject constructor(
     val userPermissions = _userPermissions.asStateFlow()
 
     fun startMonitoringAccount(currentUserId: String) {
+        // [تعديل هام] التحقق من أن المعرف غير فارغ لمنع الـ Crash في Firestore
+        if (currentUserId.isBlank()) return 
+        
         viewModelScope.launch {
             adminRepository.observeAdminProfile(currentUserId).collect { user ->
                 if (user == null || user.status != "active") {
