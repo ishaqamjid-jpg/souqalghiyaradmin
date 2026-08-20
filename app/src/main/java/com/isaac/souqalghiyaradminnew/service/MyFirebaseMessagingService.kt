@@ -17,7 +17,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // حفظ التوكن محلياً لتحديثه في قاعدة البيانات لاحقاً
         val sharedPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
         sharedPref.edit().putString("fcm_token", token).apply()
         Log.d("FCM_TOKEN", "New Token Generated: $token")
@@ -26,35 +25,29 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        // الأفضل دائماً الاعتماد على Data payload لضمان العمل في الخلفية
         val title = remoteMessage.data["title"] ?: remoteMessage.notification?.title ?: "إشعار جديد"
         val message = remoteMessage.data["message"] ?: remoteMessage.notification?.body ?: "لديك تنبيه جديد من النظام"
-
-        // التعديل هنا: استخراج رقم الطلب من الـ Payload
         val orderNumber = remoteMessage.data["order_number"] ?: ""
 
         showNotification(title, message, orderNumber)
     }
 
-    // التعديل هنا: استقبال orderNumber كـ Parameter
     private fun showNotification(title: String, message: String, orderNumber: String) {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            // التعديل هنا: تمرير رقم الطلب للـ Activity
             putExtra("order_number", orderNumber)
         }
 
         val pendingIntent = PendingIntent.getActivity(
             this,
-            System.currentTimeMillis().toInt(), // لضمان عدم استبدال الإشعارات المتعددة
+            System.currentTimeMillis().toInt(), 
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE // استخدام UPDATE_CURRENT
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val channelId = "admin_notifications_channel"
 
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            // ⚠️ تأكد أن الأيقونة مفرغة ومناسبة للإشعارات
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(message)
