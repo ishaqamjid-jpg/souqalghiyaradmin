@@ -179,7 +179,7 @@ class OrdersRepositoryImpl @Inject constructor(
 
     override suspend fun updateOrderStatus(orderId: String, newStatus: String, deliveryFees: Double): Result<Unit> {
         return try {
-            // 1. تحديث حالة الطلب مع تعديل تاريخ الحالة الجديدة
+            // 1. تحديث حالة الطلب
             db.collection("orders").document(orderId).update(
                 mapOf(
                     "order_status" to newStatus,
@@ -193,22 +193,27 @@ class OrdersRepositoryImpl @Inject constructor(
             val userId = orderSnapshot.getString("user_id") ?: ""
             val orderNumber = orderSnapshot.getLong("order_number") ?: 0L
 
-            // 3. حذف إشعارات الإدارة (admin_alarm) المرتبطة بهذا الطلب (لأنه تم تسعيره)
+            // 3. حذف إشعارات الإدارة (admin_alarm) المرتبطة بهذا الطلب
             deleteAdminAlarmByOrderNumber(orderNumber)
 
-            // 4. إنشاء تنبيه للعميل في جدول user_alarm
-            if (newStatus == "waiting for approvel") {
+            // 🌟 4. إنشاء تنبيه للعميل في جدول user_alarm (تم إصلاح وإضافة حالة الإلغاء أيضاً) 🌟
+            if (newStatus == "waiting for approvel" || newStatus == "waiting for approval" || newStatus == "canceled") {
                 if (userId.isNotEmpty()) {
                     val userSnapshot = db.collection("users").document(userId).get().await()
                     val fcmToken = userSnapshot.getString("fcm_token") ?: ""
 
                     val userAlarmRef = db.collection("user_alarm").document()
+                    
+                    // تحديد عنوان ورسالة الإشعار بناءً على حالة الطلب
+                    val title = if (newStatus == "canceled") "طلب مرفوض" else "فاتورة جاهزة"
+                    val message = if (newStatus == "canceled") "نعتذر منك، تم رفض طلبك رقم $orderNumber من قبل الإدارة." else "تم تسعير طلبك رقم $orderNumber، يرجى مراجعته."
+
                     val alarmData = hashMapOf(
                         "alarm_id" to userAlarmRef.id,
                         "date" to com.google.firebase.Timestamp.now(),
                         "order_number" to orderNumber,
-                        "title" to "فاتورة جاهزة",
-                        "message" to "تم تسعير طلبك رقم $orderNumber، يرجى مراجعته.",
+                        "title" to title,
+                        "message" to message,
                         "receiver_id" to userId,
                         "fcm_token" to fcmToken,
                         "isRead" to false
@@ -217,7 +222,10 @@ class OrdersRepositoryImpl @Inject constructor(
                 }
             }
             Result.success(Unit)
-        } catch (e: Exception) { Result.failure(e) }
+        } catch (e: Exception) { 
+            e.printStackTrace()
+            Result.failure(e) 
+        }
     }
     
     override suspend fun finalizeOrder(orderId: String, orderNumber: Long, userId: String, isSuccess: Boolean, notes: String, incrementRejection: Boolean): Result<Unit> {
