@@ -10,5 +10,6 @@ data class user_alarm(
     val message: String = "",
     val isRead: Boolean = false,
     val fcm_token: String = "",
-    val date: Timestamp? = null
+    val date: Timestamp? = null,
+val type: String = "order" 
 )
