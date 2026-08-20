@@ -86,6 +86,8 @@ class AdsRepositoryImpl @Inject constructor(
             val newDocRef = publicAdsCollectionRef.document()
             val newAd = ad.copy(doc_id = newDocRef.id, create_date = com.google.firebase.Timestamp.now())
             newDocRef.set(newAd).await()
+
+            // تم التراجع عن إضافة user_alarm هنا، الـ Firebase Function ستتكفل بذلك لضمان عدم التكرار.
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

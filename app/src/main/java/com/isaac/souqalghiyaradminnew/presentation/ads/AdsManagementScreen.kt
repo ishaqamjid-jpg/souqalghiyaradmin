@@ -48,7 +48,7 @@ fun AdsManagementScreen(
     var showDialog by remember { mutableStateOf(false) }
     var showPublicAdDialog by remember { mutableStateOf(false) }
     var adToEdit by remember { mutableStateOf<Ad?>(null) }
-    
+
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("التجارية", "العامة")
 
@@ -67,10 +67,10 @@ fun AdsManagementScreen(
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { 
+                    onClick = {
                         if (selectedTabIndex == 0) {
                             adToEdit = null
-                            showDialog = true 
+                            showDialog = true
                         } else {
                             showPublicAdDialog = true
                         }
@@ -83,7 +83,7 @@ fun AdsManagementScreen(
             containerColor = Color(0xFFF5F5F5)
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                
+
                 // --- قسم التبويبات (Tabs) ---
                 TabRow(
                     selectedTabIndex = selectedTabIndex,
@@ -258,7 +258,7 @@ fun PublicAdEditorDialog(
     var message by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("all") }
     var phoneNumber by remember { mutableStateOf("") }
-    
+
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
     val context = LocalContext.current
     var endDateStr by remember { mutableStateOf("") }
@@ -299,7 +299,7 @@ fun PublicAdEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 4
                 )
-                
+
                 Text("الفئة المستهدفة:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = category == "all", onClick = { category = "all" })
@@ -313,7 +313,7 @@ fun PublicAdEditorDialog(
                     OutlinedTextField(
                         value = phoneNumber,
                         onValueChange = { phoneNumber = it },
-                        label = { Text("رقم الهاتف المستهدف") },
+                        label = { Text("رقم الهاتف المستهدف (بدون مفتاح الدولة)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth()
@@ -353,11 +353,22 @@ fun PublicAdEditorDialog(
                         } catch (e: Exception) { null }
                     }
 
+                    // التعديل هنا: تنسيق رقم الهاتف ليحتوي على +967 دائماً
+                    val finalPhoneNumber = if (category == "specific" && phoneNumber.isNotBlank()) {
+                        var formatted = phoneNumber.trim()
+                        // إذا كتب الإدمن صفر في البداية نقوم بمسحه ليكون الرقم صحيحاً
+                        if (formatted.startsWith("0")) {
+                            formatted = formatted.substring(1)
+                        }
+                        // إذا لم يكتب المفتاح، نقوم بإضافته
+                        if (formatted.startsWith("+967")) formatted else "+967$formatted"
+                    } else ""
+
                     val newAd = PublicAdvertisement(
                         title = title,
                         message = message,
                         category = category,
-                        phone_number = if (category == "specific") phoneNumber else "",
+                        phone_number = finalPhoneNumber,
                         end_date = parseToMidnightTimestamp(endDateStr)
                     )
                     onConfirm(newAd)
@@ -366,8 +377,8 @@ fun PublicAdEditorDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
             ) { Text("إرسال", fontWeight = FontWeight.Bold) }
         },
-        dismissButton = { 
-            TextButton(onClick = onDismiss) { Text("إلغاء", color = Color.Gray) } 
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("إلغاء", color = Color.Gray) }
         },
         containerColor = Color.White,
         shape = RoundedCornerShape(16.dp)
@@ -602,8 +613,8 @@ fun AdEditorDialog(
                         image_url = imageUrl,
                         click_action_type = clickActionType,
                         target_url = targetUrl.ifBlank { null },
-                        start_date = parseToMidnightTimestamp(startDateStr)?.let { Timestamp(it.seconds - 86399, 0) }, 
-                        end_date = parseToMidnightTimestamp(endDateStr), 
+                        start_date = parseToMidnightTimestamp(startDateStr)?.let { Timestamp(it.seconds - 86399, 0) },
+                        end_date = parseToMidnightTimestamp(endDateStr),
                         priority = priority.toIntOrNull() ?: 0,
                         is_active = isActive,
                         created_at = initialAd?.created_at
@@ -613,8 +624,8 @@ fun AdEditorDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D1B6D))
             ) { Text("حفظ", fontWeight = FontWeight.Bold) }
         },
-        dismissButton = { 
-            TextButton(onClick = onDismiss) { Text("إلغاء", color = Color.Gray) } 
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("إلغاء", color = Color.Gray) }
         },
         containerColor = Color.White,
         shape = RoundedCornerShape(16.dp)
